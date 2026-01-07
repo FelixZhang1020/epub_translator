@@ -1,117 +1,155 @@
-# EPUB Translator - 双语翻译工具
+# EPUB Translator
 
-将英文 EPUB 翻译成中英双语 EPUB，每个英文段落后附带中文翻译。
+A comprehensive EPUB translation tool powered by LLMs. Translate English EPUB books to Chinese while preserving formatting, style, and context.
 
-## 功能特点
+## Features
 
-- **两种翻译模式**
-  - 基于作者背景翻译：根据作者背景和自定义提示词进行全新翻译
-  - 优化已有翻译：基于已有中文翻译，优化使其更符合现代语言习惯
+- **Multi-LLM Support**: OpenAI, Anthropic Claude, Google Gemini, Alibaba Qwen, DeepSeek
+- **4-Step Workflow**: Analysis → Translation → Proofreading → Export
+- **Book Analysis**: Automatic extraction of writing style, tone, and terminology
+- **Reference Matching**: Match paragraphs with existing translations for consistency
+- **Prompt Management**: Customizable system and user prompts with variable support
+- **Bilingual Export**: Generate translated EPUB with original/translated text
 
-- **多 LLM 支持**
-  - OpenAI (GPT-4o, GPT-4o-mini)
-  - Claude (Anthropic)
-  - Google Gemini
-  - 通义千问 (Qwen)
-
-- **断点续传**
-  - 支持暂停/恢复翻译
-  - 翻译进度实时保存
-
-- **双语预览**
-  - 实时预览翻译结果
-  - 支持手动编辑翻译
-
-## 快速开始
-
-### 环境要求
+## Prerequisites
 
 - Python 3.11+
 - Node.js 18+
-- npm 或 yarn
+- pnpm or npm
 
-### 安装运行
+## Installation
+
+### Backend Setup
 
 ```bash
-# 克隆项目
-git clone <repo-url>
-cd epub_translate
+cd backend
 
-# 一键启动
-chmod +x start.sh
-./start.sh
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Copy environment file
+cp .env.example .env
+# Edit .env to add your API keys (optional - can also set in UI)
 ```
 
-或分别启动：
+### Frontend Setup
 
 ```bash
-# 启动后端
-cd backend
-python -m venv venv
-source venv/bin/activate  # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# 启动前端（新终端）
 cd frontend
+
+# Install dependencies
 npm install
+
+# Copy environment file (optional)
+cp .env.example .env
+```
+
+## Running the Application
+
+### Start Backend Server
+
+```bash
+cd backend
+source venv/bin/activate
+uvicorn app.main:app --reload --port 8000
+```
+
+### Start Frontend Dev Server
+
+```bash
+cd frontend
 npm run dev
 ```
 
-访问 http://localhost:5173
+Open http://localhost:5173 in your browser.
 
-### 配置 LLM
-
-1. 打开设置页面
-2. 选择 LLM 提供商（OpenAI/Claude/Gemini/Qwen）
-3. 输入 API 密钥
-4. 测试连接
-
-## 使用流程
-
-1. **上传 EPUB** - 上传英文 EPUB 文件
-2. **配置翻译** - 选择翻译模式，填写作者背景（可选）
-3. **开始翻译** - 点击开始，查看实时进度
-4. **预览编辑** - 预览双语结果，手动修改翻译
-5. **导出 EPUB** - 导出双语 EPUB 文件
-
-## 项目结构
+## Project Structure
 
 ```
 epub_translate/
-├── backend/           # Python FastAPI 后端
+├── backend/
 │   ├── app/
-│   │   ├── api/       # API 路由
-│   │   ├── core/      # 核心逻辑
-│   │   │   ├── epub/  # EPUB 解析/生成
-│   │   │   ├── llm/   # LLM 适配器
-│   │   │   └── translation/  # 翻译编排
-│   │   └── models/    # 数据模型
+│   │   ├── api/v1/routes/    # API endpoints (10 modules)
+│   │   ├── core/             # Business logic
+│   │   │   ├── analysis/     # Book analysis service
+│   │   │   ├── epub/         # EPUB parsing and generation
+│   │   │   ├── llm/          # LLM provider adapters
+│   │   │   ├── matching/     # Reference paragraph matching
+│   │   │   ├── proofreading/ # Proofreading service
+│   │   │   ├── prompts/      # Prompt loading and variables
+│   │   │   └── translation/  # Translation pipeline
+│   │   └── models/database/  # SQLAlchemy models (14 models)
+│   ├── prompts/              # Markdown prompt templates
 │   └── requirements.txt
-│
-├── frontend/          # React + TypeScript 前端
-│   ├── src/
-│   │   ├── components/
-│   │   ├── pages/
-│   │   ├── services/
-│   │   └── stores/
-│   └── package.json
-│
-├── start.sh           # 一键启动脚本
-└── README.md
+├── frontend/
+│   └── src/
+│       ├── components/       # React components
+│       ├── pages/            # Page components
+│       ├── services/api/     # API client
+│       ├── stores/           # Zustand state management
+│       └── i18n/             # Internationalization (EN/ZH)
+└── scripts/                  # Utility scripts
 ```
 
-## 技术栈
+## Configuration
 
-**后端**
-- FastAPI + Python 3.11
-- SQLAlchemy + SQLite
-- ebooklib + BeautifulSoup
+### Backend Environment Variables
 
-**前端**
-- React 18 + TypeScript
-- Vite + Tailwind CSS
-- Zustand + TanStack Query
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `DEBUG` | Enable debug mode | `true` |
+| `HOST` | Server host | `0.0.0.0` |
+| `PORT` | Server port | `8000` |
+| `OPENAI_API_KEY` | OpenAI API key | - |
+| `ANTHROPIC_API_KEY` | Anthropic API key | - |
+| `GEMINI_API_KEY` | Google Gemini API key | - |
+| `DASHSCOPE_API_KEY` | Alibaba Qwen API key | - |
+
+### Frontend Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_HOST` | Backend API host | `localhost` |
+| `VITE_API_PORT` | Backend API port | `8000` |
+
+## API Overview
+
+The backend provides 102+ API endpoints organized by feature:
+
+- `/api/v1/upload` - EPUB upload and project creation
+- `/api/v1/analysis` - Book content analysis
+- `/api/v1/translation` - Translation workflow
+- `/api/v1/proofreading` - Proofreading suggestions
+- `/api/v1/export` - EPUB export
+- `/api/v1/prompts` - Prompt template management
+- `/api/v1/llm-settings` - LLM configuration
+- `/api/v1/workflow` - Workflow state management
+- `/api/v1/reference` - Reference EPUB matching
+- `/api/v1/preview` - Chapter content preview
+
+## Workflow
+
+1. **Upload**: Upload an English EPUB file
+2. **Analysis**: AI analyzes the book to extract style, tone, and terminology
+3. **Translation**: Translate paragraphs with context-aware prompts
+4. **Proofreading**: Review and refine translations
+5. **Export**: Generate bilingual EPUB output
+
+## Prompt Variables
+
+Templates support variable substitution with `{{variable}}` syntax:
+
+| Namespace | Variables |
+|-----------|-----------|
+| `project.*` | `title`, `author`, `source_language`, `target_language` |
+| `content.*` | `source_text`, `paragraph_index`, `chapter_index` |
+| `pipeline.*` | `existing_translation`, `reference_translation` |
+| `derived.*` | `writing_style`, `tone`, `terminology_table` |
+| `user.*` | Custom user-defined variables |
 
 ## License
 
