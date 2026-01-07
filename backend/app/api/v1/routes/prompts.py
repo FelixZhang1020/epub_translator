@@ -332,6 +332,14 @@ async def update_template(
                 t.is_default = False
         template.is_default = request.is_default
 
+    # If this is a built-in template and prompts were updated, save to .md files
+    if template.is_builtin and (request.system_prompt is not None or request.default_user_prompt is not None):
+        PromptLoader.save_template(
+            template.category,
+            template.system_prompt,
+            template.default_user_prompt or ""
+        )
+
     await db.commit()
     await db.refresh(template)
 

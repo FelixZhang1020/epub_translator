@@ -75,10 +75,12 @@ export function ReasoningChatModal({
     },
   })
 
-  // Apply suggestion mutation
+  // Apply suggestion mutation - uses optimization prompt to integrate suggestion
   const applySuggestionMutation = useMutation({
     mutationFn: (messageId: string) =>
-      api.applyTranslationSuggestion(translationId, messageId),
+      api.applyTranslationSuggestion(translationId, messageId, {
+        config_id: configId || undefined,
+      }),
     onSuccess: () => {
       refetchConversation()
       queryClient.invalidateQueries({ queryKey: ['chapter'] })

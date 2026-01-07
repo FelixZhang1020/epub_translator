@@ -125,13 +125,10 @@ COST_EFFECTIVENESS_TIERS = [
 # Format: (model_id, display_name)
 # These are manually selected for translation quality and cost-effectiveness
 OPENAI_RECOMMENDED_MODELS = [
-    # GPT-5.2 series (latest)
+    # GPT-5 series
     ("gpt-5.2", "GPT-5.2"),
-    # GPT-5 small variants
     ("gpt-5-mini", "GPT-5 Mini"),
     ("gpt-5-nano", "GPT-5 Nano"),
-    # Cost-effective stable option
-    ("gpt-4o-mini", "GPT-4o Mini"),
 ]
 
 # Curated DeepSeek model list - official API models only
@@ -606,11 +603,14 @@ class LLMService:
                 if not model.startswith("deepseek/"):
                     actual_model = f"deepseek/{model}"
             elif provider == "qwen":
-                # Qwen uses DashScope - strip dashscope/ prefix if present
+                # Qwen uses DashScope - ensure dashscope/ prefix
                 kwargs["api_key"] = api_key
-                kwargs["api_base"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                if model.startswith("dashscope/"):
-                    actual_model = model.replace("dashscope/", "", 1)
+                if not model.startswith("dashscope/"):
+                    actual_model = f"dashscope/{model}"
+
+        # Enforce: API key must be provided, never use env vars
+        if "api_key" not in kwargs:
+            raise ValueError("API key must be provided. Environment variables are not allowed.")
 
         response = await acompletion(
             model=actual_model,
@@ -673,11 +673,14 @@ class LLMService:
                 if not model.startswith("deepseek/"):
                     actual_model = f"deepseek/{model}"
             elif provider == "qwen":
-                # Qwen uses DashScope - strip dashscope/ prefix if present
+                # Qwen uses DashScope - ensure dashscope/ prefix
                 kwargs["api_key"] = api_key
-                kwargs["api_base"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                if model.startswith("dashscope/"):
-                    actual_model = model.replace("dashscope/", "", 1)
+                if not model.startswith("dashscope/"):
+                    actual_model = f"dashscope/{model}"
+
+        # Enforce: API key must be provided, never use env vars
+        if "api_key" not in kwargs:
+            raise ValueError("API key must be provided. Environment variables are not allowed.")
 
         response = await acompletion(
             model=actual_model,
@@ -772,11 +775,14 @@ class LLMService:
                     if not model.startswith("deepseek/"):
                         actual_model = f"deepseek/{model}"
                 elif provider == "qwen":
-                    # Qwen uses DashScope - strip dashscope/ prefix if present
+                    # Qwen uses DashScope - ensure dashscope/ prefix
                     kwargs["api_key"] = api_key
-                    kwargs["api_base"] = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-                    if model.startswith("dashscope/"):
-                        actual_model = model.replace("dashscope/", "", 1)
+                    if not model.startswith("dashscope/"):
+                        actual_model = f"dashscope/{model}"
+
+            # Enforce: API key must be provided, never use env vars
+            if "api_key" not in kwargs:
+                return False, "API key must be provided. Environment variables are not allowed."
 
             response = await acompletion(
                 model=actual_model,

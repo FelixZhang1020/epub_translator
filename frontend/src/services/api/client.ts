@@ -903,8 +903,15 @@ export const api = {
     return data
   },
 
-  async applyTranslationSuggestion(translationId: string, messageId: string): Promise<{ status: string; new_translation: string }> {
-    const { data } = await client.post(`/translation/conversation/${translationId}/apply`, { message_id: messageId })
+  async applyTranslationSuggestion(
+    translationId: string,
+    messageId: string,
+    request?: { config_id?: string }
+  ): Promise<{ status: string; new_translation: string; tokens_used?: number }> {
+    const { data } = await client.post(`/translation/conversation/${translationId}/apply`, {
+      message_id: messageId,
+      ...request,
+    })
     return data
   },
 

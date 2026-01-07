@@ -754,6 +754,12 @@ class ConversationResponse(BaseModel):
 class ApplyTranslationRequest(BaseModel):
     """Request to apply a suggested translation."""
     message_id: str
+    # Option 1: Use stored config (recommended)
+    config_id: Optional[str] = None
+    # Option 2: Direct parameters (for debugging/backwards compatibility)
+    model: Optional[str] = None
+    api_key: Optional[str] = None
+    provider: Optional[str] = None
 
 
 def _extract_suggested_translation(content: str) -> Optional[str]:
@@ -1083,7 +1089,11 @@ async def apply_suggestion(
     request: ApplyTranslationRequest,
     db: AsyncSession = Depends(get_db),
 ):
-    """Apply a suggested translation from the conversation."""
+    """Apply a suggested translation from the conversation.
+
+    Uses the optimization prompt to incorporate the user's suggested changes
+    into the full paragraph translation, ensuring natural integration.
+    """
     # Get the message with suggestion
     result = await db.execute(
         select(ConversationMessage).where(ConversationMessage.id == request.message_id)
@@ -1098,7 +1108,7 @@ async def apply_suggestion(
     if message.suggestion_applied:
         raise HTTPException(status_code=400, detail="Suggestion already applied")
 
-    # Get the translation to find paragraph_id
+    # Get the translation with paragraph to get original text
     result = await db.execute(
         select(Translation)
         .options(selectinload(Translation.paragraph))
@@ -1108,25 +1118,98 @@ async def apply_suggestion(
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    # Create new translation version
-    new_translation = Translation(
-        id=str(uuid.uuid4()),
-        paragraph_id=translation.paragraph_id,
-        translated_text=message.suggested_translation,
-        mode="conversation",
-        provider="conversation",
-        model="conversation",
-        version=translation.version + 1,
-        is_manual_edit=True,
+    # Get the conversation to retrieve LLM config info
+    result = await db.execute(
+        select(TranslationConversation).where(
+            TranslationConversation.translation_id == translation_id
+        )
     )
-    db.add(new_translation)
+    conversation = result.scalar_one_or_none()
 
-    # Mark suggestion as applied
-    message.suggestion_applied = True
+    # Resolve LLM configuration
+    try:
+        llm_config = await LLMConfigService.resolve_config(
+            db,
+            api_key=request.api_key,
+            model=request.model,
+            provider=request.provider,
+            config_id=request.config_id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-    await db.commit()
+    # Load optimization prompt template
+    optimization_template = PromptLoader.load_template("optimization")
 
-    return {"status": "applied", "new_translation": message.suggested_translation}
+    # Prepare variables for the optimization prompt
+    variables = {
+        "source_text": translation.paragraph.original_text,
+        "existing_translation": translation.translated_text,
+        "suggested_changes": message.suggested_translation,
+    }
+
+    # Render the prompts
+    system_prompt = PromptLoader.render(optimization_template.system_prompt, variables)
+    user_prompt = PromptLoader.render(optimization_template.user_prompt_template, variables)
+
+    # Build messages for LLM
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+    # Build kwargs for LiteLLM
+    kwargs = {"api_key": llm_config.api_key}
+    if llm_config.base_url:
+        kwargs["api_base"] = llm_config.base_url
+
+    try:
+        # Call LLM to optimize the translation
+        response = await acompletion(
+            model=llm_config.get_litellm_model(),
+            messages=messages,
+            **kwargs,
+        )
+
+        optimized_translation = response.choices[0].message.content.strip()
+        tokens_used = response.usage.total_tokens if response.usage else 0
+
+        # Update last used timestamp if using stored config
+        if llm_config.config_id:
+            await LLMConfigService.update_last_used(db, llm_config.config_id)
+
+        # Create new translation version with optimized text
+        new_translation = Translation(
+            id=str(uuid.uuid4()),
+            paragraph_id=translation.paragraph_id,
+            translated_text=optimized_translation,
+            mode="optimization",
+            provider=llm_config.provider,
+            model=llm_config.model,
+            version=translation.version + 1,
+            is_manual_edit=False,
+            tokens_used=tokens_used,
+        )
+        db.add(new_translation)
+
+        # Mark suggestion as applied
+        message.suggestion_applied = True
+
+        # Update conversation stats if available
+        if conversation:
+            conversation.total_tokens_used += tokens_used
+
+        await db.commit()
+
+        return {
+            "status": "applied",
+            "new_translation": optimized_translation,
+            "tokens_used": tokens_used,
+        }
+
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
 
 
 @router.delete("/translation/conversation/{translation_id}")
