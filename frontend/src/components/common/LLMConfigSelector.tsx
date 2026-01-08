@@ -1,8 +1,11 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { ChevronDown, Settings, Star, Check, AlertCircle } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
 import { useSettingsStore, LLMConfig } from '../../stores/settingsStore'
 import { useTranslation, useAppStore, fontSizeClasses } from '../../stores/appStore'
+import { api } from '../../services/api/client'
+import { sortLLMConfigs } from '../../utils/llmConfig'
 
 interface LLMConfigSelectorProps {
   className?: string
@@ -16,6 +19,17 @@ export function LLMConfigSelector({ className = '' }: LLMConfigSelectorProps) {
   const activeConfig = getActiveConfig()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Fetch models for sorting by price
+  const { data: models } = useQuery({
+    queryKey: ['models'],
+    queryFn: () => api.getModels(),
+  })
+
+  // Sort configs using the same logic as SettingsPage
+  const sortedConfigs = useMemo(() => {
+    return sortLLMConfigs(llmConfigs, models || [])
+  }, [llmConfigs, models])
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -68,7 +82,7 @@ export function LLMConfigSelector({ className = '' }: LLMConfigSelectorProps) {
         <div className="absolute top-full left-0 mt-1 w-72 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 py-1">
           {/* Config list */}
           <div className="max-h-64 overflow-y-auto">
-            {llmConfigs.map((config) => (
+            {sortedConfigs.map((config) => (
               <button
                 key={config.id}
                 onClick={() => handleSelect(config)}

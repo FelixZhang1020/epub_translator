@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
-import { useParams, useOutletContext, useNavigate } from 'react-router-dom'
+import { useParams, useOutletContext, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Upload,
@@ -66,12 +66,15 @@ export function TranslateWorkflowPage() {
   const context = useOutletContext<WorkflowContext>()
   const fontSize = useAppStore((state) => state.fontSize)
   const fontClasses = fontSizeClasses[fontSize]
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // Panel resize functionality from shared hook
   const { panelWidths, handleChapterListResize, handleReferencePanelResize } = usePanelResize()
 
-  // State
-  const [selectedChapter, setSelectedChapter] = useState<string | null>(null)
+  // State - initialize from URL params if available
+  const [selectedChapter, setSelectedChapter] = useState<string | null>(
+    searchParams.get('chapter') || null
+  )
   const [editingParagraph, setEditingParagraph] = useState<string | null>(null)
   const [editText, setEditText] = useState('')
   const [confirmedParagraphs, setConfirmedParagraphs] = useState<Set<string>>(new Set())
@@ -136,9 +139,15 @@ export function TranslateWorkflowPage() {
   // Create ordered list of chapter IDs from TOC for navigation
   const orderedChapterIds = useOrderedChapterIds(toc, chapters)
 
+  // Wrapper function to update both state and URL params
+  const setSelectedChapterWithUrl = useCallback((chapterId: string) => {
+    setSelectedChapter(chapterId)
+    setSearchParams({ chapter: chapterId })
+  }, [setSearchParams])
+
   // Chapter navigation
   const { canGoPrev, canGoNext, goToPrevChapter, goToNextChapter } =
-    useChapterNavigation(orderedChapterIds, selectedChapter, setSelectedChapter)
+    useChapterNavigation(orderedChapterIds, selectedChapter, setSelectedChapterWithUrl)
 
   // Extract prompt preview variables from analysis data
   const promptPreviewVariables = useMemo(() => {
@@ -263,9 +272,9 @@ export function TranslateWorkflowPage() {
   // Select first chapter by default
   useEffect(() => {
     if (orderedChapterIds.length > 0 && !selectedChapter) {
-      setSelectedChapter(orderedChapterIds[0])
+      setSelectedChapterWithUrl(orderedChapterIds[0])
     }
-  }, [orderedChapterIds, selectedChapter])
+  }, [orderedChapterIds, selectedChapter, setSelectedChapterWithUrl])
 
   // Get paragraphs from chapter content
   const paragraphs = chapterContent?.paragraphs || []
@@ -353,6 +362,16 @@ export function TranslateWorkflowPage() {
     mutationFn: () => api.confirmTranslation(projectId!),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['workflowStatus', projectId] })
+      context?.refetchWorkflow()
+    },
+  })
+
+  // Cancel stuck tasks mutation
+  const cancelStuckTasksMutation = useMutation({
+    mutationFn: () => api.cancelStuckTasks(projectId!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['workflowStatus', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['chapter', projectId, selectedChapter] })
       context?.refetchWorkflow()
     },
   })
@@ -518,6 +537,23 @@ export function TranslateWorkflowPage() {
             )}
             <span className="hidden sm:inline">{isTranslating ? t('translate.translating') : t('translate.translateCurrentChapter')}</span>
           </button>
+
+          {/* Cancel stuck tasks button - only show when translating */}
+          {isTranslating && (
+            <button
+              onClick={() => cancelStuckTasksMutation.mutate()}
+              disabled={cancelStuckTasksMutation.isPending}
+              className={`flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 ${fontClasses.button}`}
+              title={t('translate.cancelStuckTasks')}
+            >
+              {cancelStuckTasksMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <X className="w-4 h-4" />
+              )}
+              <span className="hidden lg:inline">{cancelStuckTasksMutation.isPending ? t('translate.cancelingTasks') : t('common.cancel')}</span>
+            </button>
+          )}
           <button
             onClick={() => setShowPreviewModal(true)}
             className={`flex items-center gap-2 px-2 lg:px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 ${fontClasses.button}`}
@@ -571,7 +607,7 @@ export function TranslateWorkflowPage() {
               <TreeChapterList
                 toc={toc}
                 selectedChapterId={selectedChapter}
-                onSelectChapter={setSelectedChapter}
+                onSelectChapter={setSelectedChapterWithUrl}
                 fontClasses={fontClasses}
               />
             ) : chapters?.length ? (
@@ -579,7 +615,7 @@ export function TranslateWorkflowPage() {
                 {chapters.map((chapter) => (
                   <button
                     key={chapter.id}
-                    onClick={() => setSelectedChapter(chapter.id)}
+                    onClick={() => setSelectedChapterWithUrl(chapter.id)}
                     className={`w-full text-left px-1.5 py-1 rounded ${fontClasses.paragraph} transition-colors ${
                       selectedChapter === chapter.id
                         ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'

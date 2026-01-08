@@ -277,13 +277,3 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
 // Hook to check if store is ready (hydrated)
 export const useSettingsHydrated = () => useSettingsStore((state) => state._isHydrated)
-
-// Hook to auto-load configs on mount
-export const useLoadLLMConfigs = () => {
-  const loadConfigs = useSettingsStore((state) => state.loadConfigs)
-  const isHydrated = useSettingsStore((state) => state._isHydrated)
-
-  if (!isHydrated) {
-    loadConfigs()
-  }
-}

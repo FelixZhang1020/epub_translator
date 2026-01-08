@@ -42,7 +42,7 @@ from .pipeline import (
 )
 
 # Re-export orchestrator
-from .orchestrator import TranslationOrchestrator, TranslationProgressTracker
+from .orchestrator import TranslationOrchestrator
 
 
 __all__ = [
@@ -70,5 +70,4 @@ __all__ = [
     "PipelineConfig",
     # Orchestrator
     "TranslationOrchestrator",
-    "TranslationProgressTracker",
 ]

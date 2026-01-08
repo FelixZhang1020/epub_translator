@@ -77,6 +77,22 @@ EXCLUDE_PATTERNS = [
     r"speech",      # speech models
     r":0$",  # exclude versioned duplicates like model:0
     r"v1:0$",
+    # Exclude old Claude models (keep only 4.5 series)
+    r"claude-3-",   # Exclude all Claude 3.x models
+    r"claude-3\.",  # Exclude Claude 3.x with dot notation
+    # Exclude Claude 4.x (not 4.5) - multiple formats
+    r"claude-sonnet-4-(?!5)",  # claude-sonnet-4-20250514
+    r"claude-opus-4-(?!5)",    # claude-opus-4-20250514
+    r"claude-haiku-4-(?!5)",   # claude-haiku-4-20241022
+    r"claude-sonnet-4@",       # claude-sonnet-4@20250514 (with @ separator)
+    r"claude-opus-4@",         # claude-opus-4@20250514 (with @ separator)
+    r"claude-haiku-4@",        # claude-haiku-4@20250514 (with @ separator)
+    r"claude-4-sonnet",        # claude-4-sonnet
+    r"claude-4-opus",          # claude-4-opus
+    r"claude-4-haiku",         # claude-4-haiku
+    r"claude-sonnet-4$",       # claude-sonnet-4 (exact match, no date)
+    r"claude-opus-4$",         # claude-opus-4 (exact match, no date)
+    r"claude-haiku-4$",        # claude-haiku-4 (exact match, no date)
 ]
 
 # Priority keywords for sorting (higher = more preferred)
@@ -85,9 +101,9 @@ PRIORITY_KEYWORDS = [
     # Most popular/flagship models
     ("gpt-4o", 200),
     ("gpt-4", 180),
-    ("claude-3-5-sonnet", 190),
-    ("claude-sonnet-4", 185),
-    ("claude-opus", 170),
+    ("claude-opus-4-5", 195),
+    ("claude-sonnet-4-5", 190),
+    ("claude-haiku-4-5", 185),
     ("gemini-3-pro", 190),
     ("gemini-3-flash", 180),
     ("gemini-2.5-pro", 185),
@@ -223,16 +239,24 @@ class LLMService:
             date_suffix = f" ({year}-{month}-{day})"
             name = name[:date_match.start()]  # Remove date portion
         else:
-            # Match compact date format like "20250514" at end
+            # Match compact date format with dash like "-20250514" at end
             date_match2 = re.search(r'-(\d{4})(\d{2})(\d{2})$', name)
             if date_match2:
                 year, month, day = date_match2.groups()
                 date_suffix = f" ({year}-{month}-{day})"
                 name = name[:date_match2.start()]  # Remove date portion
+            else:
+                # Match compact date format with @ like "@20250514" at end (vertex models)
+                date_match3 = re.search(r'@(\d{4})(\d{2})(\d{2})$', name)
+                if date_match3:
+                    year, month, day = date_match3.groups()
+                    date_suffix = f" ({year}-{month}-{day})"
+                    name = name[:date_match3.start()]  # Remove date portion
 
         # Now convert version patterns like "4-5" to "4.5"
         # This is safe since we already removed the date
-        name = re.sub(r'(\d)-(\d)', r'\1.\2', name)
+        # But be careful not to match single digit followed by long number (date remnants)
+        name = re.sub(r'(\d)-(\d)(?!\d{6,})', r'\1.\2', name)
 
         # Replace dots in provider-style names (e.g., "qwen.qwen3" -> "qwen3")
         if name.startswith("qwen."):

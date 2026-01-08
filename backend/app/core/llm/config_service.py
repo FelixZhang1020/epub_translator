@@ -126,7 +126,7 @@ class LLMConfigService:
                 # Use a default model for the provider
                 default_models = {
                     "openai": "gpt-4o-mini",
-                    "anthropic": "claude-3-5-sonnet-20241022",
+                    "anthropic": "claude-sonnet-4-5-20250929",
                     "gemini": "gemini-2.5-flash",
                     "qwen": "qwen-plus",
                     "deepseek": "deepseek-chat",
@@ -175,7 +175,10 @@ class LLMConfigService:
     @classmethod
     def _config_to_resolved(cls, config: LLMConfiguration) -> ResolvedLLMConfig:
         """Convert database config to resolved config."""
-        return ResolvedLLMConfig(
+        import logging
+        logger = logging.getLogger(__name__)
+
+        resolved = ResolvedLLMConfig(
             provider=config.provider,
             model=config.model,
             api_key=config.api_key,
@@ -184,6 +187,10 @@ class LLMConfigService:
             config_id=config.id,
             config_name=config.name,
         )
+
+        logger.info(f"[Config Service] Resolved config: provider={resolved.provider}, model={resolved.model}, base_url={resolved.base_url}, config_name={resolved.config_name}")
+
+        return resolved
 
     @classmethod
     async def update_last_used(cls, db: AsyncSession, config_id: str) -> None:

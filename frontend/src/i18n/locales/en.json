@@ -211,7 +211,9 @@
     "completeTranslation": "Complete Translation",
     "translationConfirmed": "Completed",
     "continueTranslating": "Continue Translating",
-    "resetTranslationStatus": "Reset to continue translating"
+    "resetTranslationStatus": "Reset to continue translating",
+    "cancelStuckTasks": "Cancel Stuck Tasks",
+    "cancelingTasks": "Canceling..."
   },
   "preview": {
     "chapterList": "Chapter List",
@@ -231,6 +233,7 @@
   "workflow": {
     "analysis": "Analysis",
     "translation": "Translation",
+    "translating": "Translating",
     "proofreading": "Proofreading",
     "export": "Export",
     "continueToTranslation": "Continue to Translation",

@@ -22,6 +22,7 @@ import {
 import { api, ModelInfo, ProviderInfo } from '../services/api/client'
 import { useSettingsStore, LLMConfig } from '../stores/settingsStore'
 import { useTranslation, useAppStore, FontSize, fontSizeClasses } from '../stores/appStore'
+import { sortLLMConfigs } from '../utils/llmConfig'
 
 // Format cost for display ($/M = per million tokens)
 function formatCost(costPerMillion: number): string {
@@ -625,43 +626,7 @@ export function SettingsPage() {
 
   // Sort configs: default first, then by provider, then by price (high to low)
   const sortedConfigs = useMemo(() => {
-    if (!llmConfigs.length) return []
-
-    // Create a map of model prices for quick lookup
-    const modelPriceMap = new Map<string, number>()
-    if (models) {
-      for (const m of models) {
-        modelPriceMap.set(m.id, m.input_cost_per_million)
-      }
-    }
-
-    // Provider order (same as PROVIDER_CONFIG in backend)
-    const providerOrder: Record<string, number> = {
-      openai: 0,
-      anthropic: 1,
-      gemini: 2,
-      qwen: 3,
-      deepseek: 4,
-      ollama: 5,
-      openrouter: 6,
-    }
-
-    return [...llmConfigs].sort((a, b) => {
-      // Default first
-      if (a.isDefault !== b.isDefault) {
-        return a.isDefault ? -1 : 1
-      }
-      // Then by provider order
-      const providerA = providerOrder[a.provider] ?? 99
-      const providerB = providerOrder[b.provider] ?? 99
-      if (providerA !== providerB) {
-        return providerA - providerB
-      }
-      // Then by price (high to low)
-      const priceA = modelPriceMap.get(a.model) ?? 0
-      const priceB = modelPriceMap.get(b.model) ?? 0
-      return priceB - priceA
-    })
+    return sortLLMConfigs(llmConfigs, models || [])
   }, [llmConfigs, models])
 
   const handleAdd = async (config: { name: string; provider: string; model: string; temperature: number; isDefault: boolean; apiKey?: string }) => {

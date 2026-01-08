@@ -21,9 +21,12 @@ export const PANEL_CONSTRAINTS = {
 /**
  * Flatten a hierarchical TOC structure into an ordered list of chapter IDs.
  * This is used for chapter navigation (prev/next).
+ * Removes duplicates while preserving order (keeps last occurrence).
  */
 export function flattenTocToChapterIds(toc: TocItem[]): string[] {
   const result: string[] = []
+  const seen = new Set<string>()
+
   for (const item of toc) {
     if (item.chapter_id) {
       result.push(item.chapter_id)
@@ -32,7 +35,27 @@ export function flattenTocToChapterIds(toc: TocItem[]): string[] {
       result.push(...flattenTocToChapterIds(item.children))
     }
   }
-  return result
+
+  // Remove duplicates by keeping only the last occurrence
+  // This ensures that if a chapter appears as both parent and child,
+  // we keep the child position (deeper in the hierarchy)
+  const uniqueResult: string[] = []
+  const lastIndices = new Map<string, number>()
+
+  // Find the last index of each chapter_id
+  result.forEach((id, index) => {
+    lastIndices.set(id, index)
+  })
+
+  // Keep only items at their last occurrence index
+  result.forEach((id, index) => {
+    if (lastIndices.get(id) === index && !seen.has(id)) {
+      uniqueResult.push(id)
+      seen.add(id)
+    }
+  })
+
+  return uniqueResult
 }
 
 /**
@@ -68,16 +91,18 @@ export function useChapterNavigation(
     currentChapterIndex < orderedChapterIds.length - 1
 
   const goToPrevChapter = useCallback(() => {
-    if (canGoPrev) {
-      setSelectedChapter(orderedChapterIds[currentChapterIndex - 1])
+    const currentIndex = orderedChapterIds.findIndex((id) => id === selectedChapter)
+    if (currentIndex > 0) {
+      setSelectedChapter(orderedChapterIds[currentIndex - 1])
     }
-  }, [canGoPrev, currentChapterIndex, orderedChapterIds, setSelectedChapter])
+  }, [orderedChapterIds, selectedChapter, setSelectedChapter])
 
   const goToNextChapter = useCallback(() => {
-    if (canGoNext) {
-      setSelectedChapter(orderedChapterIds[currentChapterIndex + 1])
+    const currentIndex = orderedChapterIds.findIndex((id) => id === selectedChapter)
+    if (currentIndex >= 0 && currentIndex < orderedChapterIds.length - 1) {
+      setSelectedChapter(orderedChapterIds[currentIndex + 1])
     }
-  }, [canGoNext, currentChapterIndex, orderedChapterIds, setSelectedChapter])
+  }, [orderedChapterIds, selectedChapter, setSelectedChapter])
 
   return {
     currentChapterIndex,

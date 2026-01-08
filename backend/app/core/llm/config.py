@@ -55,16 +55,33 @@ class LLMSettings(BaseSettings):
         return key_map.get(provider)
 
 
-# Default provider configurations
+# ========== DEPRECATED: Legacy Provider Configurations ==========
+# WARNING: This configuration system is deprecated in favor of the database-backed
+# LLMConfigService (config_service.py). These hardcoded providers are only used by
+# legacy endpoints in llm_settings.py (marked with [Legacy]).
+#
+# Issues with this system:
+# 1. Contains fictional model names (gpt-5.*) that don't exist
+# 2. Hardcoded configurations that can't be updated without code changes
+# 3. No persistence or user management
+#
+# New code should use:
+# - LLMConfigService for database-backed configurations
+# - LiteLLM model names (e.g., "openai/gpt-4o-mini")
+# - /llm/configurations API endpoints
+#
+# TODO: Remove this system once all legacy endpoints are migrated
+# =================================================================
 DEFAULT_PROVIDERS: list[LLMProviderConfig] = [
     LLMProviderConfig(
         name="openai",
         display_name="OpenAI",
         api_key_env_var="OPENAI_API_KEY",
         models=[
-            LLMModelConfig(id="gpt-5.2", name="GPT-5.2", context_window=128000),
-            LLMModelConfig(id="gpt-5-mini", name="GPT-5 Mini", context_window=128000),
-            LLMModelConfig(id="gpt-5-nano", name="GPT-5 Nano", context_window=128000),
+            # WARNING: gpt-5.* models are fictional placeholders, not real OpenAI models
+            LLMModelConfig(id="gpt-5.2", name="GPT-5.2 (FICTIONAL)", context_window=128000),
+            LLMModelConfig(id="gpt-5-mini", name="GPT-5 Mini (FICTIONAL)", context_window=128000),
+            LLMModelConfig(id="gpt-5-nano", name="GPT-5 Nano (FICTIONAL)", context_window=128000),
             LLMModelConfig(id="gpt-4o-mini", name="GPT-4o Mini", context_window=128000),
         ],
     ),
@@ -73,9 +90,9 @@ DEFAULT_PROVIDERS: list[LLMProviderConfig] = [
         display_name="Claude (Anthropic)",
         api_key_env_var="ANTHROPIC_API_KEY",
         models=[
-            LLMModelConfig(id="claude-sonnet-4-20250514", name="Claude Sonnet 4", context_window=200000),
-            LLMModelConfig(id="claude-3-5-sonnet-20241022", name="Claude 3.5 Sonnet", context_window=200000),
-            LLMModelConfig(id="claude-3-5-haiku-20241022", name="Claude 3.5 Haiku", context_window=200000),
+            LLMModelConfig(id="claude-opus-4-5-20251101", name="Claude Opus 4.5", context_window=200000),
+            LLMModelConfig(id="claude-sonnet-4-5-20250929", name="Claude Sonnet 4.5", context_window=200000),
+            LLMModelConfig(id="claude-haiku-4-5-20250929", name="Claude Haiku 4.5", context_window=200000),
         ],
     ),
     LLMProviderConfig(

@@ -170,6 +170,9 @@ async def get_resume_position(
 
 async def _get_translation_progress(db: AsyncSession, project_id: str) -> dict:
     """Get translation progress details."""
+    from sqlalchemy import func
+    from app.models.database import Translation, Paragraph, Chapter
+
     # Get the latest translation task
     result = await db.execute(
         select(TranslationTask)
@@ -179,20 +182,34 @@ async def _get_translation_progress(db: AsyncSession, project_id: str) -> dict:
     )
     task = result.scalar_one_or_none()
 
+    # Always check actual translations count from database
+    # This ensures button state reflects reality even if task tracking fails
+    actual_count_result = await db.execute(
+        select(func.count(Translation.id))
+        .join(Paragraph, Translation.paragraph_id == Paragraph.id)
+        .join(Chapter, Paragraph.chapter_id == Chapter.id)
+        .where(Chapter.project_id == project_id)
+    )
+    actual_completed = actual_count_result.scalar() or 0
+
     if not task:
         return {
             "has_task": False,
             "progress": 0.0,
-            "completed_paragraphs": 0,
+            "completed_paragraphs": actual_completed,
             "total_paragraphs": 0,
         }
+
+    # Use actual count if it's higher than task's tracked count
+    # This handles cases where task fails but translations were saved
+    completed_count = max(task.completed_paragraphs, actual_completed)
 
     return {
         "has_task": True,
         "task_id": task.id,
         "status": task.status,
-        "progress": task.progress,
-        "completed_paragraphs": task.completed_paragraphs,
+        "progress": task.progress if task.total_paragraphs > 0 else (100.0 if actual_completed > 0 else 0.0),
+        "completed_paragraphs": completed_count,
         "total_paragraphs": task.total_paragraphs,
         "last_paragraph_id": task.current_paragraph_id,
     }
@@ -293,6 +310,46 @@ async def reset_translation_status(
     }
 
 
+@router.post("/workflow/{project_id}/cancel-stuck-tasks")
+async def cancel_stuck_translation_tasks(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+):
+    """Cancel any stuck translation tasks (processing or pending) for the project."""
+    # Find project
+    result = await db.execute(
+        select(Project).where(Project.id == project_id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Find all tasks in processing or pending state
+    from app.models.database.translation import TaskStatus
+    result = await db.execute(
+        select(TranslationTask).where(
+            TranslationTask.project_id == project_id,
+            TranslationTask.status.in_([TaskStatus.PROCESSING.value, TaskStatus.PENDING.value])
+        )
+    )
+    stuck_tasks = result.scalars().all()
+
+    # Cancel each stuck task
+    cancelled_count = 0
+    for task in stuck_tasks:
+        task.status = TaskStatus.FAILED.value
+        task.error_message = "Task cancelled by user due to being stuck"
+        cancelled_count += 1
+
+    await db.commit()
+
+    return {
+        "project_id": project_id,
+        "cancelled_tasks": cancelled_count,
+        "message": f"Cancelled {cancelled_count} stuck translation task(s)",
+    }
+
+
 def _validate_step_transition(project: Project, new_step: WorkflowStep) -> bool:
     """Validate if a step transition is allowed."""
     step_order = [
@@ -319,6 +376,8 @@ def _validate_step_transition(project: Project, new_step: WorkflowStep) -> bool:
         elif new_step == WorkflowStep.PROOFREADING:
             return project.translation_completed  # Need completed translation
         elif new_step == WorkflowStep.EXPORT:
-            return True  # Can go to export at any time after proofreading
+            # Can only export after proofreading is completed
+            # (or skip proofreading if translation is completed and user hasn't done proofreading)
+            return project.translation_completed  # At minimum need translation done
 
     return False

@@ -605,11 +605,6 @@ export const api = {
     return data
   },
 
-  async getProviderModels(provider: string): Promise<ModelInfo[]> {
-    const { data } = await client.get(`/llm/models/${provider}`)
-    return data
-  },
-
   async testConnection(request: {
     model: string
     api_key?: string
@@ -695,6 +690,11 @@ export const api = {
 
   async resetTranslationStatus(projectId: string): Promise<{ project_id: string; translation_completed: boolean; current_step: string }> {
     const { data } = await client.post(`/workflow/${projectId}/reset-translation-status`)
+    return data
+  },
+
+  async cancelStuckTasks(projectId: string): Promise<{ project_id: string; cancelled_tasks: number; message: string }> {
+    const { data } = await client.post(`/workflow/${projectId}/cancel-stuck-tasks`)
     return data
   },
 
@@ -963,19 +963,7 @@ export const api = {
     return data
   },
 
-  // Legacy Prompts (file-based, simple endpoint)
-  async getLegacyPromptTemplate(promptType: string): Promise<PromptTemplate> {
-    const { data } = await client.get(`/prompts/${promptType}`)
-    return data
-  },
-
-  async updateLegacyPromptTemplate(promptType: string, systemPrompt: string): Promise<PromptTemplate> {
-    const { data } = await client.put(`/prompts/${promptType}`, {
-      system_prompt: systemPrompt,
-    })
-    return data
-  },
-
+  // Prompt Preview (still used by PromptPreviewModal)
   async previewPrompt(promptType: string, variables: Record<string, unknown>, customSystemPrompt?: string, customUserPrompt?: string): Promise<PromptPreview> {
     const { data } = await client.post(`/prompts/${promptType}/preview`, {
       variables,

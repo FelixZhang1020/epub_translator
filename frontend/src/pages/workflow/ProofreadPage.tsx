@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useParams, useOutletContext, useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useOutletContext, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Play,
@@ -62,6 +62,7 @@ export function ProofreadPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const context = useOutletContext<WorkflowContext>()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   // App store for font size
   const fontSize = useAppStore((state) => state.fontSize)
@@ -86,8 +87,10 @@ export function ProofreadPage() {
   const [statusFilter, setStatusFilter] = useState<string>('pending')
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<string>>(new Set())
 
-  // Chapter state (for all-translations mode)
-  const [selectedChapter, setSelectedChapter] = useState<string | null>(null)
+  // Chapter state (for all-translations mode) - initialize from URL params
+  const [selectedChapter, setSelectedChapter] = useState<string | null>(
+    searchParams.get('chapter') || null
+  )
   const [editingParagraph, setEditingParagraph] = useState<string | null>(null)
   const [editParagraphText, setEditParagraphText] = useState('')
 
@@ -115,16 +118,22 @@ export function ProofreadPage() {
   // Create ordered list of chapter IDs
   const orderedChapterIds = useOrderedChapterIds(toc, chapters)
 
+  // Wrapper function to update both state and URL params
+  const setSelectedChapterWithUrl = useCallback((chapterId: string) => {
+    setSelectedChapter(chapterId)
+    setSearchParams({ chapter: chapterId })
+  }, [setSearchParams])
+
   // Chapter navigation
   const { canGoPrev, canGoNext, goToPrevChapter, goToNextChapter } =
-    useChapterNavigation(orderedChapterIds, selectedChapter, setSelectedChapter)
+    useChapterNavigation(orderedChapterIds, selectedChapter, setSelectedChapterWithUrl)
 
   // Auto-select first chapter when viewing all translations
   useEffect(() => {
     if (viewMode === 'all-translations' && orderedChapterIds.length > 0 && !selectedChapter) {
-      setSelectedChapter(orderedChapterIds[0])
+      setSelectedChapterWithUrl(orderedChapterIds[0])
     }
-  }, [viewMode, orderedChapterIds, selectedChapter])
+  }, [viewMode, orderedChapterIds, selectedChapter, setSelectedChapterWithUrl])
 
   // Fetch chapter content for all-translations view
   const { data: chapterContent, isLoading: isLoadingContent } = useQuery({
@@ -480,7 +489,7 @@ export function ProofreadPage() {
                   <TreeChapterList
                     toc={toc}
                     selectedChapterId={selectedChapter}
-                    onSelectChapter={setSelectedChapter}
+                    onSelectChapter={setSelectedChapterWithUrl}
                     fontClasses={fontClasses}
                   />
                 ) : chapters?.length ? (
@@ -488,7 +497,7 @@ export function ProofreadPage() {
                     {chapters.map((chapter) => (
                       <button
                         key={chapter.id}
-                        onClick={() => setSelectedChapter(chapter.id)}
+                        onClick={() => setSelectedChapterWithUrl(chapter.id)}
                         className={`w-full text-left px-1.5 py-1 rounded ${fontClasses.paragraph} transition-colors ${
                           selectedChapter === chapter.id
                             ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'

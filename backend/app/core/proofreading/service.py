@@ -63,16 +63,20 @@ class ProofreadingService:
         max_round = result.scalar() or 0
         new_round = max_round + 1
 
-        # Count paragraphs to proofread
+        # Count paragraphs with translations (only these will be proofread)
         if chapter_ids:
             result = await db.execute(
-                select(func.count(Paragraph.id))
+                select(func.count(func.distinct(Paragraph.id)))
+                .select_from(Paragraph)
+                .join(Translation, Translation.paragraph_id == Paragraph.id)
                 .where(Paragraph.chapter_id.in_(chapter_ids))
             )
         else:
             result = await db.execute(
-                select(func.count(Paragraph.id))
+                select(func.count(func.distinct(Paragraph.id)))
+                .select_from(Paragraph)
                 .join(Chapter)
+                .join(Translation, Translation.paragraph_id == Paragraph.id)
                 .where(Chapter.project_id == project_id)
             )
         total_paragraphs = result.scalar() or 0
@@ -173,10 +177,14 @@ class ProofreadingService:
                 # Build prompts using PromptLoader
                 template = PromptLoader.load_template("proofreading")
                 variables = {
-                    "original_text": para.original_text,
-                    "current_translation": latest_translation.translated_text,
-                    "writing_style": writing_style,
-                    "tone": tone,
+                    "content": {
+                        "source": para.original_text,
+                        "target": latest_translation.translated_text,
+                    },
+                    "derived": {
+                        "writing_style": writing_style,
+                        "tone": tone,
+                    },
                 }
 
                 system_prompt = custom_system_prompt or PromptLoader.render(

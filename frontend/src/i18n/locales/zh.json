@@ -211,7 +211,9 @@
     "completeTranslation": "完成翻译",
     "translationConfirmed": "已完成",
     "continueTranslating": "继续翻译",
-    "resetTranslationStatus": "重置状态以继续翻译"
+    "resetTranslationStatus": "重置状态以继续翻译",
+    "cancelStuckTasks": "取消卡住的任务",
+    "cancelingTasks": "取消中..."
   },
   "preview": {
     "chapterList": "章节列表",
@@ -231,6 +233,7 @@
   "workflow": {
     "analysis": "书籍分析",
     "translation": "翻译",
+    "translating": "翻译中",
     "proofreading": "校对",
     "export": "导出",
     "continueToTranslation": "继续翻译",

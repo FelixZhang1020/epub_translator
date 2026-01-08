@@ -1,13 +1,16 @@
 """Translation Orchestrator - Manages the translation workflow using pipeline architecture."""
 
 import asyncio
+import logging
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from tenacity import retry, stop_after_attempt, wait_exponential
+
+logger = logging.getLogger(__name__)
 
 from app.models.database.base import async_session_maker
 from app.models.database.project import Project
@@ -67,6 +70,9 @@ class TranslationOrchestrator:
         self.use_iterative = use_iterative
         self._should_stop = False
 
+        # Log configuration for debugging
+        logger.info(f"[Orchestrator] Initialized: task_id={task_id}, provider={provider}, model={model}, temperature={temperature}")
+
     async def run(self):
         """Run the translation task."""
         async with async_session_maker() as db:
@@ -117,14 +123,22 @@ class TranslationOrchestrator:
                     start_para_idx=start_para_idx,
                 )
 
-                # Mark as completed
+                # Mark task as completed
                 task.status = TaskStatus.COMPLETED.value
                 task.completed_at = datetime.utcnow()
                 task.progress = 1.0
 
-                # Mark project translation as completed
-                project.translation_completed = True
-                project.current_step = "proofreading"
+                # Check if ALL chapters in project are translated
+                # Only mark project as completed if every chapter has translations
+                all_chapters_translated = await self._check_all_chapters_translated(db, project.id)
+
+                if all_chapters_translated:
+                    project.translation_completed = True
+                    project.current_step = "proofreading"
+                    logger.info(f"Project {project.id} translation fully completed")
+                else:
+                    logger.info(f"Project {project.id} task completed, but some chapters remain untranslated")
+
                 await db.commit()
 
             except Exception as e:
@@ -240,6 +254,9 @@ class TranslationOrchestrator:
                     mode=mode,
                 )
 
+                # Add small delay between requests to avoid overloading API
+                await asyncio.sleep(1.0)
+
     async def _should_stop_processing(
         self, db: AsyncSession, task: TranslationTask
     ) -> bool:
@@ -254,8 +271,9 @@ class TranslationOrchestrator:
         ]
 
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=30),
+        stop=stop_after_attempt(5),  # Increase retry attempts for 503 errors
+        wait=wait_exponential(multiplier=2, min=4, max=60),  # Longer waits for overloaded servers
+        reraise=True,
     )
     async def _translate_paragraph(
         self,
@@ -303,15 +321,56 @@ class TranslationOrchestrator:
             await db.commit()
 
         except Exception as e:
-            task.error_message = str(e)
+            error_msg = str(e)
+            task.error_message = error_msg
             task.retry_count += 1
             await db.commit()
 
-            if task.retry_count >= 3:
+            logger.error(f"[Orchestrator] Translation error for paragraph {paragraph.id}: {error_msg}, retry_count={task.retry_count}")
+
+            if task.retry_count >= 5:
                 task.status = TaskStatus.FAILED.value
                 await db.commit()
+                logger.error(f"[Orchestrator] Task {self.task_id} failed after 5 retries")
 
             raise
+
+    async def _check_all_chapters_translated(
+        self, db: AsyncSession, project_id: str
+    ) -> bool:
+        """Check if all chapters in the project have at least one translation.
+
+        Args:
+            db: Database session
+            project_id: Project ID
+
+        Returns:
+            True if all chapters have translations, False otherwise
+        """
+        # Count total chapters
+        result = await db.execute(
+            select(func.count(Chapter.id)).where(Chapter.project_id == project_id)
+        )
+        total_chapters = result.scalar() or 0
+
+        if total_chapters == 0:
+            return False
+
+        # Count chapters with at least one translated paragraph
+        result = await db.execute(
+            select(func.count(func.distinct(Paragraph.chapter_id)))
+            .select_from(Paragraph)
+            .join(Chapter)
+            .join(Translation, Translation.paragraph_id == Paragraph.id)
+            .where(Chapter.project_id == project_id)
+        )
+        chapters_with_translations = result.scalar() or 0
+
+        logger.info(
+            f"Project {project_id}: {chapters_with_translations}/{total_chapters} chapters translated"
+        )
+
+        return chapters_with_translations == total_chapters
 
     async def _handle_failure(self, db: AsyncSession, error_message: str):
         """Handle task failure."""
@@ -323,27 +382,3 @@ class TranslationOrchestrator:
             task.status = TaskStatus.FAILED.value
             task.error_message = error_message
             await db.commit()
-
-
-class TranslationProgressTracker:
-    """Track and broadcast translation progress."""
-
-    def __init__(self, task_id: str):
-        self.task_id = task_id
-        self._subscribers: list[asyncio.Queue] = []
-
-    def subscribe(self) -> asyncio.Queue:
-        """Subscribe to progress updates."""
-        queue = asyncio.Queue()
-        self._subscribers.append(queue)
-        return queue
-
-    def unsubscribe(self, queue: asyncio.Queue):
-        """Unsubscribe from progress updates."""
-        if queue in self._subscribers:
-            self._subscribers.remove(queue)
-
-    async def broadcast(self, progress: dict):
-        """Broadcast progress to all subscribers."""
-        for queue in self._subscribers:
-            await queue.put(progress)

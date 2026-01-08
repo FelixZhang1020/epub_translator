@@ -100,6 +100,11 @@ class OpenAIGateway(LLMGateway):
         else:
             self._litellm_model = model
 
+        # Log configuration for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[LLM Gateway] Initialized: provider={provider_name}, model={model}, litellm_model={self._litellm_model}, base_url={base_url}")
+
     @property
     def provider(self) -> str:
         return self._provider
@@ -134,6 +139,11 @@ class OpenAIGateway(LLMGateway):
 
         if bundle.response_format:
             kwargs["response_format"] = bundle.response_format
+
+        # Log the API call for debugging
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"[LLM Gateway] Calling LiteLLM: model={self._litellm_model}, provider={self._provider}, base_url={self._base_url}")
 
         response = await acompletion(**kwargs)
 
@@ -361,7 +371,7 @@ class GatewayFactory:
         },
         "gemini": {
             "class": OpenAIGateway,
-            "base_url": "https://generativelanguage.googleapis.com/v1beta/openai/",
+            "base_url": None,  # Let LiteLLM use default Gemini endpoint
         },
     }
 

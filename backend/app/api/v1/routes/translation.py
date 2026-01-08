@@ -144,6 +144,11 @@ async def start_translation(
     if llm_config.config_id:
         await LLMConfigService.update_last_used(db, llm_config.config_id)
 
+    # Log the configuration before starting translation
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"[Translation API] Starting translation: task_id={task.id}, provider={llm_config.provider}, model={llm_config.model}, base_url={llm_config.base_url}, config_id={llm_config.config_id}")
+
     # Start translation in background
     # Prompts are loaded from files by PromptLoader inside the orchestrator
     # Custom prompts from request override file-based prompts for this session
@@ -992,11 +997,15 @@ async def apply_suggestion(
     # Load optimization prompt template
     optimization_template = PromptLoader.load_template("optimization")
 
-    # Prepare variables for the optimization prompt
+    # Prepare variables for the optimization prompt using canonical names
     variables = {
-        "source_text": translation.paragraph.original_text,
-        "existing_translation": translation.translated_text,
-        "suggested_changes": message.suggested_translation,
+        "content": {
+            "source": translation.paragraph.original_text,
+            "target": translation.translated_text,
+        },
+        "pipeline": {
+            "suggested_changes": message.suggested_translation,
+        },
     }
 
     # Render the prompts

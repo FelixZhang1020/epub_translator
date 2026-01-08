@@ -1,4 +1,4 @@
-import { ReactNode } from 'react'
+import { ReactNode, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { BookOpen, Settings, Home, Loader2, Languages, FileCheck, Download, Check, FileText } from 'lucide-react'
 import { ThemeToggle } from '../common/ThemeToggle'
@@ -15,12 +15,30 @@ function HeaderStepIndicator({
 }) {
   const { t } = useTranslation()
 
-  const steps = [
-    { id: 'analysis', icon: BookOpen, label: t('workflow.analysis') },
-    { id: 'translation', icon: Languages, label: t('workflow.translation') },
-    { id: 'proofreading', icon: FileCheck, label: t('workflow.proofreading') },
-    { id: 'export', icon: Download, label: t('workflow.export') },
-  ]
+  // Check if translation is actively running
+  const isTranslating = status.translationProgress?.hasTask &&
+    (status.translationProgress.status === 'processing' || status.translationProgress.status === 'pending')
+
+  // Build steps array dynamically - insert "translating" node when translation is running
+  const steps = useMemo(() => {
+    const baseSteps = [
+      { id: 'analysis', icon: BookOpen, label: t('workflow.analysis') },
+      { id: 'translation', icon: Languages, label: t('workflow.translation') },
+      { id: 'proofreading', icon: FileCheck, label: t('workflow.proofreading') },
+      { id: 'export', icon: Download, label: t('workflow.export') },
+    ]
+
+    // Insert "translating" node between translation and proofreading when translation is running
+    if (isTranslating) {
+      baseSteps.splice(2, 0, {
+        id: 'translating',
+        icon: Loader2,
+        label: t('workflow.translating'),
+      })
+    }
+
+    return baseSteps
+  }, [t, isTranslating])
 
   // Status types:
   // - completed: Step is fully done (green checkmark)
@@ -35,17 +53,19 @@ function HeaderStepIndicator({
       return 'upcoming'
     }
 
-    // Translation: completed when done, in_progress when has partial content
+    // Translation: completed when done or when actively translating (show as completed to make room for "translating" node)
     if (stepId === 'translation') {
       if (status.translationCompleted) return 'completed'
-      // Check if translation is in progress (has partial content or actively processing)
-      if (status.translationProgress?.hasTask) {
-        const isProcessing = status.translationProgress.status === 'processing' || status.translationProgress.status === 'pending'
-        const hasPartialContent = status.translationProgress.completedParagraphs > 0
-        if (isProcessing || hasPartialContent) return 'in_progress'
-      }
+      // When translation is running, mark the translation step as completed
+      // so the "translating" node shows as in_progress
+      if (isTranslating) return 'completed'
       if (status.currentStep === 'translation') return 'current'
       return 'upcoming'
+    }
+
+    // Translating (dynamic node): always in_progress when it exists
+    if (stepId === 'translating') {
+      return 'in_progress'
     }
 
     // Proofreading and Export: keep simple for now
@@ -64,6 +84,9 @@ function HeaderStepIndicator({
   }
 
   const canNavigate = (stepId: string): boolean => {
+    // The "translating" dynamic node is not clickable
+    if (stepId === 'translating') return false
+
     const stepOrder = ['analysis', 'translation', 'proofreading', 'export']
     const currentIndex = stepOrder.indexOf(status.currentStep)
     const targetIndex = stepOrder.indexOf(stepId)
@@ -120,6 +143,11 @@ function HeaderStepIndicator({
               >
                 {stepStatus === 'completed' ? (
                   <Check className="w-3.5 h-3.5" />
+                ) : stepStatus === 'in_progress' && step.id === 'translating' ? (
+                  // Show percentage for translating node
+                  <span className="text-[9px] font-bold">
+                    {Math.round((status.translationProgress?.progress || 0) * 100)}%
+                  </span>
                 ) : stepStatus === 'in_progress' ? (
                   <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 ) : (
@@ -208,33 +236,9 @@ export function Layout({ children }: LayoutProps) {
 
             {/* Center: Spacer with workflow indicator - flex-1 keeps nav position stable */}
             <div className="flex-1 flex justify-center items-center">
-              {/* Workflow Step Indicator + Translation Progress */}
-              {isInProject && (workflowStatus || translationProgress) && (
-                <div className="flex items-center gap-3">
-                {/* Workflow Step Indicator */}
-                {workflowStatus && (
-                  <HeaderStepIndicator status={workflowStatus} onStepClick={handleStepClick} />
-                )}
-
-                {/* Translation Progress */}
-                {translationProgress && (
-                  <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 dark:bg-blue-900/40 rounded-full border border-blue-200 dark:border-blue-700">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600 dark:text-blue-400" />
-                    <span className={`${fontClasses.xs} text-blue-700 dark:text-blue-300 font-medium`}>
-                      {t('translate.translationInProgress')}
-                    </span>
-                    <div className="w-20 h-1.5 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-blue-600 dark:bg-blue-400 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.round(translationProgress.progress * 100)}%` }}
-                      />
-                    </div>
-                    <span className={`${fontClasses.xs} text-blue-600 dark:text-blue-400 min-w-[3rem] text-right`}>
-                      {Math.round(translationProgress.progress * 100)}%
-                    </span>
-                  </div>
-                )}
-                </div>
+              {/* Workflow Step Indicator */}
+              {isInProject && workflowStatus && (
+                <HeaderStepIndicator status={workflowStatus} onStepClick={handleStepClick} />
               )}
             </div>
 
