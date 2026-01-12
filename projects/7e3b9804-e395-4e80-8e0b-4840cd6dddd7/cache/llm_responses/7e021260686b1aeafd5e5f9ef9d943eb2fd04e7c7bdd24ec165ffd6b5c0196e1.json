@@ -1,0 +1,25 @@
+{
+  "response": {
+    "content": "你好世界",
+    "provider": "openai",
+    "model": "gpt-4o",
+    "usage": {
+      "prompt_tokens": 10,
+      "completion_tokens": 5,
+      "total_tokens": 15
+    },
+    "latency_ms": 850,
+    "raw_response": null
+  },
+  "cache_key": "7e021260686b1aeafd5e5f9ef9d943eb2fd04e7c7bdd24ec165ffd6b5c0196e1",
+  "provider": "openai",
+  "model": "gpt-4o",
+  "prompt_hash": "a50b83ee6188a8ce",
+  "created_at": 1767936914.978903,
+  "accessed_at": 1767936914.980077,
+  "access_count": 3,
+  "ttl_seconds": 2592000,
+  "request_metadata": {
+    "temperature": 0.7
+  }
+}

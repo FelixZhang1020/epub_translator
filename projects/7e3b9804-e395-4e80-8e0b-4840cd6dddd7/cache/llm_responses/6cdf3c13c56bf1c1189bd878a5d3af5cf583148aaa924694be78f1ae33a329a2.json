@@ -1,0 +1,25 @@
+{
+  "response": {
+    "content": "早上好",
+    "provider": "anthropic",
+    "model": "claude-sonnet-4.5",
+    "usage": {
+      "prompt_tokens": 12,
+      "completion_tokens": 4,
+      "total_tokens": 16
+    },
+    "latency_ms": 920,
+    "raw_response": null
+  },
+  "cache_key": "6cdf3c13c56bf1c1189bd878a5d3af5cf583148aaa924694be78f1ae33a329a2",
+  "provider": "anthropic",
+  "model": "claude-sonnet-4.5",
+  "prompt_hash": "fa56e9890757ca9f",
+  "created_at": 1767936914.979131,
+  "accessed_at": 1767936914.979626,
+  "access_count": 2,
+  "ttl_seconds": 2592000,
+  "request_metadata": {
+    "temperature": 0.7
+  }
+}

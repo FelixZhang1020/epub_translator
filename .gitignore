@@ -54,3 +54,15 @@ logs/
 *.tmp
 *.temp
 .cache/
+
+# Test data
+test-payload.json
+proofread-payload.json
+vars.json
+backend/test_data/
+
+# Project uploads and data
+projects/*/uploads/
+
+# Migration scripts (local only)
+backend/scripts/
