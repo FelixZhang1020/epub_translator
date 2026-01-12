@@ -5,7 +5,7 @@
 
 ## Reporting a Vulnerability
 - **Preferred:** Open a private GitHub Security Advisory for this repository.
-- **Alternative:** If advisories are unavailable, contact the maintainer privately at `zhang_felix@outlook.com` and avoid posting exploit details publicly. As a last resort, open an issue with minimal information and ask for a secure channel.
+- **Alternative:** If advisories are unavailable, open an issue with minimal information and request a secure channel (avoid posting exploit details publicly).
 
 Please include:
 - Commit hash or release tag you tested
@@ -18,6 +18,5 @@ Please include:
 - Credit reporters in release notes if desired and appropriate.
 
 ## 中文
-- 建议通过 GitHub Security Advisory 私密提交安全问题；如无法使用，请私信维护者 `zhang_felix@outlook.com`，避免公开细节。  
-- 最终手段可提交 Issue（只写最少信息）并请求建立私密通道。  
+- 建议通过 GitHub Security Advisory 私密提交安全问题；如无法使用，可提交 Issue（只写最少信息）并请求建立私密通道，避免公开细节。  
 - 我们会在 5 个工作日内确认并在 14 个工作日内给出修复计划或进展。  

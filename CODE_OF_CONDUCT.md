@@ -14,7 +14,7 @@ We are committed to a welcoming, harassment-free experience for everyone, regard
 - Sharing sensitive data (e.g., user content, API keys) without consent.
 
 ## Reporting
-- Prefer private channels for reporting: GitHub Security Advisory (for security issues), or contact the maintainers privately via email/DM. Primary contact: `zhang_felix@outlook.com`. If private contact is unavailable, open an issue with minimal details and request a secure follow-up.
+- Prefer private channels for reporting: GitHub Security Advisory (for security issues). If that is unavailable, open an issue with minimal details and request a secure follow-up.
 - Reports will be acknowledged within 5 business days. We aim to provide a resolution path or status update within 14 business days.
 
 ## Enforcement
@@ -24,4 +24,4 @@ We are committed to a welcoming, harassment-free experience for everyone, regard
 ## 中文简述
 - 尊重、友善、包容，讨论聚焦问题本身；避免人身攻击、歧视或泄露敏感信息。  
 - 违规行为（骚扰、仇恨言论、威胁、泄密等）将被删除并可能导致禁言/移除。  
-- 如需举报，请优先通过私密渠道（安全通告或私信维护者，邮箱：`zhang_felix@outlook.com`）；无法私信时可提交 Issue 并请求私下跟进。  
+- 如需举报，请优先通过私密渠道（安全通告）；如无法使用，可提交 Issue（简要描述）并请求私下跟进。  
