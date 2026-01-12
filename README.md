@@ -1,11 +1,21 @@
 # ePub Translator / 电子书翻译器
 
+<div align="center">
+  <a href="https://github.com/FelixZhang1020/epub_translator/stargazers"><img src="https://img.shields.io/github/stars/FelixZhang1020/epub_translator?style=flat-square" alt="GitHub Stars"></a>
+  <a href="https://github.com/FelixZhang1020/epub_translator/actions"><img src="https://img.shields.io/badge/CI-status-grey?style=flat-square" alt="CI Status"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
+  <a><img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+"></a>
+  <a><img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 18+"></a>
+</div>
+
 LLM-powered pipeline that translates English ePub books into Chinese while keeping layout, tone, and context intact. Pick a language below to read the guide.
 
 <div align="center" style="margin:12px 0;padding:10px;border:1px solid #d0d7de;border-radius:12px;background:#f6f8fa;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
   <a href="#english-version" style="display:inline-block;padding:8px 14px;border:1px solid #d0d7de;border-radius:10px;text-decoration:none;font-weight:700;color:#0969da;background:#ffffff;">English</a>
   <a href="#中文版本" style="display:inline-block;padding:8px 14px;border:1px solid #d0d7de;border-radius:10px;text-decoration:none;font-weight:700;color:#0969da;background:#ffffff;">中文</a>
 </div>
+
+**Open Source Links:** [License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md)
 
 ## English Version
 
