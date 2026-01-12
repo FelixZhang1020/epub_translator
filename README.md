@@ -2,10 +2,22 @@
 
 LLM-powered pipeline that translates English ePub books into Chinese while keeping layout, tone, and context intact. 基于大模型的英文 ePub → 中文全流程翻译工具，尽可能保留排版与语境。
 
-<p align="left">
-  <a href="#english-version" style="display:inline-block;padding:6px 10px;margin-right:6px;border:1px solid #d0d7de;border-radius:6px;text-decoration:none;font-weight:600;background:#f6f8fa;color:#0969da;">🇺🇸 English</a>
-  <a href="#中文版本" style="display:inline-block;padding:6px 10px;margin-right:6px;border:1px solid #d0d7de;border-radius:6px;text-decoration:none;font-weight:600;background:#f6f8fa;color:#0969da;">🇨🇳 中文</a>
-</p>
+<div align="center" style="margin:12px 0;padding:10px;border:1px solid #d0d7de;border-radius:12px;background:#f6f8fa;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
+  <a href="#english-version" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #d0d7de;border-radius:10px;text-decoration:none;font-weight:600;color:#0969da;background:#ffffff;">
+    <svg width="20" height="20" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+      <rect x="2" y="2" width="32" height="32" rx="8" fill="#f0f6ff" stroke="#0969da" stroke-width="2"/>
+      <text x="18" y="23" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="#0969da">EN</text>
+    </svg>
+    <span>English</span>
+  </a>
+  <a href="#中文版本" style="display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #d0d7de;border-radius:10px;text-decoration:none;font-weight:600;color:#0969da;background:#ffffff;">
+    <svg width="20" height="20" viewBox="0 0 36 36" aria-hidden="true" focusable="false">
+      <rect x="2" y="2" width="32" height="32" rx="8" fill="#f0f6ff" stroke="#0969da" stroke-width="2"/>
+      <text x="18" y="23" text-anchor="middle" font-size="12" font-family="Arial, sans-serif" fill="#0969da">中</text>
+    </svg>
+    <span>中文</span>
+  </a>
+</div>
 
 ## English Version
 
