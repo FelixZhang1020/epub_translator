@@ -1,5 +1,6 @@
 """Main FastAPI application."""
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,6 +9,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.models.database.base import init_db
 from app.api.v1.routes import upload, translation, preview, export, llm_settings, workflow, analysis, reference, proofreading, prompts, cache
+from app.api.dependencies import sync_projects_on_startup
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
@@ -15,6 +19,24 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler."""
     # Startup: Initialize database
     await init_db()
+
+    # Startup: Sync projects (clean up orphaned records)
+    try:
+        summary = await sync_projects_on_startup()
+        if summary["db_records_deleted"] > 0:
+            logger.info(
+                "Cleaned up %d orphaned project records on startup",
+                summary["db_records_deleted"],
+            )
+        if summary["orphaned_folders_found"] > 0:
+            logger.warning(
+                "Found %d orphaned project folders: %s",
+                summary["orphaned_folders_found"],
+                summary["orphaned_folder_ids"],
+            )
+    except Exception as e:
+        logger.error("Failed to sync projects on startup: %s", e)
+
     yield
     # Shutdown: cleanup if needed
 

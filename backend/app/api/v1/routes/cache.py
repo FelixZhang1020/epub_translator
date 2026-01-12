@@ -1,26 +1,15 @@
 """Cache management API routes."""
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database import get_db, Project
 from app.core.cache.llm_cache import get_cache
+from app.api.dependencies import ValidatedProject
 
 router = APIRouter()
-
-
-async def get_verified_project(
-    project_id: str = Path(...),
-    db: AsyncSession = Depends(get_db),
-) -> Project:
-    """Dependency to verify project exists and return it."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-    return project
 
 
 class CacheStatsResponse(BaseModel):
@@ -45,7 +34,7 @@ class CacheClearResponse(BaseModel):
 
 @router.get("/cache/{project_id}/stats")
 async def get_cache_stats(
-    project: Project = Depends(get_verified_project),
+    project: ValidatedProject,
 ) -> CacheStatsResponse:
     """Get cache statistics for a project.
 
@@ -67,7 +56,7 @@ async def get_cache_stats(
 
 @router.post("/cache/{project_id}/clear")
 async def clear_cache(
-    project: Project = Depends(get_verified_project),
+    project: ValidatedProject,
 ) -> CacheClearResponse:
     """Clear all cache entries for a project.
 
@@ -87,7 +76,7 @@ async def clear_cache(
 
 @router.post("/cache/{project_id}/clear-expired")
 async def clear_expired_cache(
-    project: Project = Depends(get_verified_project),
+    project: ValidatedProject,
 ) -> CacheClearResponse:
     """Clear expired cache entries for a project.
 

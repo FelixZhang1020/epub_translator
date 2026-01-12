@@ -4,12 +4,15 @@ import shutil
 from pathlib import Path
 
 from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.models.database import get_db, Project
+from app.models.database.chapter import Chapter
 from app.core.epub import EPUBParserV2
 from app.core.project_storage import ProjectStorage
+from app.api.dependencies import ValidatedProject
 
 router = APIRouter()
 
@@ -111,13 +114,8 @@ async def list_projects(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/projects/{project_id}")
-async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_project(project: ValidatedProject):
     """Get project details."""
-    from sqlalchemy import select
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
     return {
         "id": project.id,
         "name": project.name,
@@ -136,13 +134,12 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.delete("/projects/{project_id}")
-async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_project(
+    project: ValidatedProject,
+    db: AsyncSession = Depends(get_db),
+):
     """Delete a project and all its files."""
-    from sqlalchemy import select, delete
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Delete from database first (cascades to chapters, paragraphs, translations)
     await db.execute(delete(Project).where(Project.id == project_id))
@@ -155,14 +152,11 @@ async def delete_project(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/projects/{project_id}/favorite")
-async def toggle_favorite(project_id: str, db: AsyncSession = Depends(get_db)):
+async def toggle_favorite(
+    project: ValidatedProject,
+    db: AsyncSession = Depends(get_db),
+):
     """Toggle the favorite status of a project."""
-    from sqlalchemy import select
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
     project.is_favorite = not project.is_favorite
     await db.commit()
 
@@ -170,20 +164,17 @@ async def toggle_favorite(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/projects/{project_id}/reparse")
-async def reparse_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def reparse_project(
+    project: ValidatedProject,
+    db: AsyncSession = Depends(get_db),
+):
     """Re-parse an existing project's EPUB file.
 
     This will delete all existing chapters and paragraphs, then re-parse
     the EPUB file with the latest parser logic.
     WARNING: This will also delete all translations!
     """
-    from sqlalchemy import select, delete
-    from app.models.database.chapter import Chapter
-
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Check if file exists
     file_path = Path(project.original_file_path)

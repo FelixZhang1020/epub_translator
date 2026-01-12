@@ -32,6 +32,7 @@ from app.core.translation.models import (
     ExistingTranslation,
 )
 from app.core.translation.pipeline import PromptEngine, ContextBuilder
+from app.api.dependencies import validate_project_exists
 from litellm import acompletion
 import uuid
 
@@ -94,11 +95,8 @@ async def start_translation(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Verify project exists
-    result = await db.execute(select(Project).where(Project.id == request.project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    # Verify project exists (with auto-cleanup of orphaned records)
+    project = await validate_project_exists(request.project_id, db)
 
     # Update project with author context if provided
     if request.author_background:

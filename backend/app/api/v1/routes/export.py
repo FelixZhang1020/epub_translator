@@ -5,19 +5,19 @@ from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.config import settings
 from app.models.database import get_db, Project
 from app.models.database.chapter import Chapter
 from app.models.database.paragraph import Paragraph
 from app.core.epub.generator import EPUBGenerator
 from app.core.epub.reconstructor import EPUBReconstructor, BilingualEPUBBuilder, TranslationMapping
 from app.core.project_storage import ProjectStorage
+from app.api.dependencies import ValidatedProject
 
 router = APIRouter()
 
@@ -44,17 +44,14 @@ class ExportRequest(BaseModel):
 
 @router.post("/export/{project_id}")
 async def export_bilingual_epub(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Export project as bilingual EPUB (legacy method).
 
     Note: This uses the older EPUBGenerator. Consider using /export/{project_id}/v2 instead.
     """
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     try:
         # Ensure exports directory exists
@@ -75,17 +72,12 @@ async def export_bilingual_epub(
 
 @router.get("/export/{project_id}/preview")
 async def preview_export(
-    project_id: str,
+    project: ValidatedProject,
     chapter_id: str = None,
     db: AsyncSession = Depends(get_db),
 ):
     """Preview exported content (HTML format)."""
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    generator = EPUBGenerator(project_id, db)
+    generator = EPUBGenerator(project.id, db)
     html_content = await generator.generate_preview(chapter_id)
 
     return {"html": html_content}
@@ -93,7 +85,7 @@ async def preview_export(
 
 @router.post("/export/{project_id}/v2")
 async def export_epub_v2(
-    project_id: str,
+    validated_project: ValidatedProject,
     format: ExportFormat = Query(default=ExportFormat.TRANSLATED),
     target_language: str = Query(default="zh"),
     chapter_ids: Optional[List[str]] = Query(default=None),
@@ -112,7 +104,9 @@ async def export_epub_v2(
     Returns:
         EPUB file download
     """
-    # Load project with all chapters and paragraphs
+    project_id = validated_project.id
+
+    # Load project with all chapters and paragraphs (eager loading)
     result = await db.execute(
         select(Project)
         .where(Project.id == project_id)
@@ -122,9 +116,7 @@ async def export_epub_v2(
             .selectinload(Paragraph.translations)
         )
     )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = result.scalar_one()
 
     # Check if original file exists
     original_path = Path(project.original_file_path)
@@ -204,7 +196,7 @@ async def export_epub_v2(
 
 @router.get("/export/{project_id}/stats")
 async def get_export_stats(
-    project_id: str,
+    validated_project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Get translation statistics for export readiness.
@@ -214,18 +206,17 @@ async def get_export_stats(
     - Translated paragraphs
     - Paragraphs with XPath (for V2 export)
     """
+    # Load project with eager loading for stats calculation
     result = await db.execute(
         select(Project)
-        .where(Project.id == project_id)
+        .where(Project.id == validated_project.id)
         .options(
             selectinload(Project.chapters)
             .selectinload(Chapter.paragraphs)
             .selectinload(Paragraph.translations)
         )
     )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = result.scalar_one()
 
     total_paragraphs = 0
     translated_paragraphs = 0
@@ -257,7 +248,7 @@ async def get_export_stats(
 
 @router.post("/export/{project_id}/html")
 async def export_html(
-    project_id: str,
+    project: ValidatedProject,
     chapter_ids: Optional[List[str]] = Query(default=None),
     width: HtmlWidth = Query(default=HtmlWidth.MEDIUM),
     db: AsyncSession = Depends(get_db),
@@ -274,10 +265,7 @@ async def export_html(
     Returns:
         HTML file download
     """
-    result = await db.execute(select(Project).where(Project.id == project_id))
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     try:
         generator = EPUBGenerator(project_id, db)

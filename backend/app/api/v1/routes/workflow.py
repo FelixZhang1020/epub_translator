@@ -12,6 +12,7 @@ from sqlalchemy.orm import selectinload
 from app.models.database import get_db, Project, BookAnalysis, TranslationTask, AnalysisTask
 from app.models.database.translation import TaskStatus
 from app.models.database.proofreading import ProofreadingSession, ProofreadingSuggestion, SuggestionStatus
+from app.api.dependencies import ValidatedProject
 
 router = APIRouter()
 
@@ -45,19 +46,19 @@ class UpdateStepRequest(BaseModel):
 
 @router.get("/workflow/{project_id}/status")
 async def get_workflow_status(
-    project_id: str,
+    validated_project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowStatusResponse:
     """Get workflow status and progress for resume."""
-    # Load project with analysis
+    project_id = validated_project.id
+
+    # Load project with analysis (eager loading)
     result = await db.execute(
         select(Project)
         .options(selectinload(Project.analysis))
         .where(Project.id == project_id)
     )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = result.scalar_one()
 
     # Get analysis progress (includes task status)
     analysis_progress = await _get_analysis_progress(db, project_id)
@@ -83,18 +84,11 @@ async def get_workflow_status(
 
 @router.put("/workflow/{project_id}/step")
 async def update_workflow_step(
-    project_id: str,
+    project: ValidatedProject,
     request: UpdateStepRequest,
     db: AsyncSession = Depends(get_db),
 ):
     """Update the current workflow step."""
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
     # Validate step transition
     valid_transition = _validate_step_transition(project, request.step)
     if not valid_transition:
@@ -107,25 +101,25 @@ async def update_workflow_step(
     await db.commit()
 
     return {
-        "project_id": project_id,
+        "project_id": project.id,
         "current_step": project.current_step,
     }
 
 
 @router.get("/workflow/{project_id}/resume")
 async def get_resume_position(
-    project_id: str,
+    validated_project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Get the recommended resume position based on workflow state."""
+    # Load project with analysis (eager loading)
     result = await db.execute(
         select(Project)
         .options(selectinload(Project.analysis))
-        .where(Project.id == project_id)
+        .where(Project.id == validated_project.id)
     )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project = result.scalar_one()
+    project_id = project.id
 
     # Determine recommended step
     if not project.analysis or not project.analysis.user_confirmed:
@@ -281,16 +275,11 @@ async def _get_proofreading_progress(db: AsyncSession, project_id: str) -> dict:
 
 @router.post("/workflow/{project_id}/confirm-translation")
 async def confirm_translation(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Confirm translation completion and advance to proofreading step."""
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Check if there's any translation content
     translation_progress = await _get_translation_progress(db, project_id)
@@ -338,17 +327,10 @@ async def confirm_translation(
 
 @router.post("/workflow/{project_id}/reset-translation-status")
 async def reset_translation_status(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Reset translation completion status back to in-progress."""
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
     # Reset translation and proofreading completed status
     # Going back to translation invalidates any proofreading work
     project.translation_completed = False
@@ -358,7 +340,7 @@ async def reset_translation_status(
     await db.refresh(project)
 
     return {
-        "project_id": project_id,
+        "project_id": project.id,
         "translation_completed": False,
         "proofreading_completed": False,
         "current_step": project.current_step,
@@ -367,17 +349,10 @@ async def reset_translation_status(
 
 @router.post("/workflow/{project_id}/confirm-proofreading")
 async def confirm_proofreading(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Confirm proofreading completion and advance to export step."""
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
     # Verify translation is completed first
     if not project.translation_completed:
         raise HTTPException(
@@ -391,7 +366,7 @@ async def confirm_proofreading(
     await db.commit()
 
     return {
-        "project_id": project_id,
+        "project_id": project.id,
         "proofreading_completed": True,
         "current_step": project.current_step,
     }
@@ -399,17 +374,11 @@ async def confirm_proofreading(
 
 @router.post("/workflow/{project_id}/cancel-stuck-tasks")
 async def cancel_stuck_translation_tasks(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel any stuck translation tasks (processing or pending) for the project."""
-    # Find project
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Find all tasks in processing or pending state
     from app.models.database.translation import TaskStatus
@@ -439,17 +408,11 @@ async def cancel_stuck_translation_tasks(
 
 @router.post("/workflow/{project_id}/cancel-analysis-task")
 async def cancel_analysis_task(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Cancel any active analysis task for the project."""
-    # Find project
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Find active analysis task (processing status)
     result = await db.execute(

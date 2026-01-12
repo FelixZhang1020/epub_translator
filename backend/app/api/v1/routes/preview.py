@@ -4,7 +4,6 @@ import mimetypes
 import re
 import zipfile
 from pathlib import Path
-from typing import Optional, Any
 from urllib.parse import quote, unquote, urlsplit
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -14,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.database import get_db, Project, Chapter, Paragraph, Translation
+from app.models.database import get_db, Chapter, Paragraph, Translation
+from app.api.dependencies import ValidatedProject
 
 router = APIRouter()
 
@@ -121,11 +121,12 @@ class UpdateTranslationRequest(BaseModel):
 
 @router.get("/preview/{project_id}/chapters")
 async def get_chapters(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Get all chapters for a project with translation progress."""
     from sqlalchemy import func, case, and_
+    project_id = project.id
 
     # Get chapters with translated and confirmed paragraph counts
     result = await db.execute(
@@ -191,7 +192,7 @@ def _collect_toc_hrefs(toc_items: list[dict]) -> set[str]:
 
 @router.get("/preview/{project_id}/toc")
 async def get_toc(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ):
     """Get hierarchical table of contents for a project.
@@ -199,13 +200,7 @@ async def get_toc(
     Returns the original EPUB TOC structure with chapter IDs linked.
     Also includes chapters that exist in spine but not in TOC (like Cover).
     """
-    # Get project with TOC structure
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Get chapters for mapping
     result = await db.execute(
@@ -403,23 +398,14 @@ async def get_translation_history(
 
 @router.get("/preview/{project_id}/image/{image_path:path}")
 async def get_image(
-    project_id: str,
+    project: ValidatedProject,
     image_path: str,
-    db: AsyncSession = Depends(get_db),
 ):
     """Serve an image from the EPUB file.
 
     The image_path should be the path within the EPUB (e.g., 'images/cover.jpg').
     Handles various path formats including relative paths.
     """
-    # Get project to find EPUB file
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
     epub_path = Path(project.original_file_path)
     if not epub_path.exists():
         raise HTTPException(status_code=404, detail="EPUB file not found")

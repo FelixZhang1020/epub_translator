@@ -60,9 +60,10 @@ data/temp/outputs/*
 !data/temp/outputs/.gitkeep
 
 # Project data (per-project storage)
-projects/*/uploads/
-projects/*/exports/
-projects/*/cache/
+projects/
+
+# SQL migrations (applied, no longer needed)
+backend/migrations/
 
 # Sample EPUB files (optional - uncomment to ignore)
 # epub_sample/

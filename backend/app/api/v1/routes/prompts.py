@@ -18,11 +18,11 @@ from app.core.prompts.output_schemas import (
     PROOFREADING_OUTPUT_SCHEMA,
     DERIVED_MAPPING_DISPLAY,
 )
+from app.api.dependencies import ValidatedProject
 from app.models.database import (
     get_db,
     ProjectPromptConfig,
     PromptCategory,
-    Project,
     BookAnalysis,
 )
 from app.utils.text import safe_truncate
@@ -794,7 +794,7 @@ async def get_available_variables(
 
 @router.get("/prompts/projects/{project_id}/parameter-review")
 async def get_parameter_review(
-    project_id: str,
+    project: ValidatedProject,
     db: AsyncSession = Depends(get_db),
 ) -> ParameterReviewResponse:
     """Get comprehensive parameter review for all workflow stages.
@@ -804,13 +804,7 @@ async def get_parameter_review(
         - Output parameters for structured stages (analysis/proofreading)
         - Derived variable mappings showing how analysis output flows to other stages
     """
-    # Load project
-    result = await db.execute(
-        select(Project).where(Project.id == project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
+    project_id = project.id
 
     # Load analysis
     result = await db.execute(
