@@ -125,9 +125,9 @@ async def get_chapters(
     db: AsyncSession = Depends(get_db),
 ):
     """Get all chapters for a project with translation progress."""
-    from sqlalchemy import func, case
+    from sqlalchemy import func, case, and_
 
-    # Get chapters with translated paragraph counts
+    # Get chapters with translated and confirmed paragraph counts
     result = await db.execute(
         select(
             Chapter.id,
@@ -141,7 +141,18 @@ async def get_chapters(
                         (Translation.translated_text.isnot(None) & (Translation.translated_text != ""), Paragraph.id)
                     )
                 )
-            ).label("translated_count")
+            ).label("translated_count"),
+            func.count(
+                func.distinct(
+                    case(
+                        (and_(
+                            Translation.translated_text.isnot(None),
+                            Translation.translated_text != "",
+                            Translation.is_confirmed == True
+                        ), Paragraph.id)
+                    )
+                )
+            ).label("confirmed_count")
         )
         .select_from(Chapter)
         .outerjoin(Paragraph, Paragraph.chapter_id == Chapter.id)
@@ -159,6 +170,7 @@ async def get_chapters(
             "paragraph_count": c.paragraph_count,
             "word_count": c.word_count,
             "translated_count": c.translated_count,
+            "confirmed_count": c.confirmed_count,
         }
         for c in chapters
     ]

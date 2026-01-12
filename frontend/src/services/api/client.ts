@@ -26,6 +26,7 @@ export interface Chapter {
   paragraph_count: number
   word_count: number
   translated_count: number
+  confirmed_count: number
 }
 
 export interface Paragraph {
@@ -667,8 +668,39 @@ export const api = {
   },
 
   // Export
-  async exportEpub(projectId: string): Promise<Blob> {
-    const { data } = await client.post(`/export/${projectId}`, null, {
+  async exportEpub(projectId: string, options?: {
+    format?: 'bilingual' | 'translated',
+    chapter_ids?: string[]
+  }): Promise<Blob> {
+    const params = new URLSearchParams()
+    if (options?.format) {
+      params.append('format', options.format)
+    }
+    if (options?.chapter_ids && options.chapter_ids.length > 0) {
+      options.chapter_ids.forEach(id => params.append('chapter_ids', id))
+    }
+    const queryString = params.toString()
+    const url = `/export/${projectId}/v2${queryString ? `?${queryString}` : ''}`
+    const { data } = await client.post(url, null, {
+      responseType: 'blob',
+    })
+    return data
+  },
+
+  async exportHtml(projectId: string, options?: {
+    chapter_ids?: string[]
+    width?: 'narrow' | 'medium' | 'wide' | 'full'
+  }): Promise<Blob> {
+    const params = new URLSearchParams()
+    if (options?.chapter_ids && options.chapter_ids.length > 0) {
+      options.chapter_ids.forEach(id => params.append('chapter_ids', id))
+    }
+    if (options?.width) {
+      params.append('width', options.width)
+    }
+    const queryString = params.toString()
+    const url = `/export/${projectId}/html${queryString ? `?${queryString}` : ''}`
+    const { data } = await client.post(url, null, {
       responseType: 'blob',
     })
     return data

@@ -1,7 +1,9 @@
 """EPUB Generator - Create bilingual EPUB files."""
 
+import base64
+import os
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 
 import ebooklib
 from ebooklib import epub
@@ -23,6 +25,7 @@ class EPUBGenerator:
         self.project_id = project_id
         self.db = db
         self.output_dir = output_dir or settings.output_dir
+        self._image_cache: Dict[str, str] = {}  # Cache for base64 encoded images
 
     async def generate(self) -> Path:
         """Generate bilingual EPUB file."""
@@ -100,14 +103,57 @@ class EPUBGenerator:
 
         return output_path
 
-    async def _generate_bilingual_chapter(self, chapter: Chapter) -> str:
-        """Generate bilingual HTML content for a chapter."""
+    async def _generate_bilingual_chapter(
+        self, chapter: Chapter, embed_images: bool = False, image_map: Optional[Dict[str, str]] = None
+    ) -> str:
+        """Generate bilingual HTML content for a chapter.
+
+        Args:
+            chapter: The chapter to process
+            embed_images: If True, convert images to base64 data URLs (for preview)
+            image_map: Pre-loaded map of image paths to base64 data URLs
+        """
         # Parse original HTML
-        soup = BeautifulSoup(chapter.original_html, "lxml")
+        soup = BeautifulSoup(chapter.original_html or "", "lxml")
         body = soup.find("body")
 
         if not body:
-            return chapter.original_html
+            return chapter.original_html or ""
+
+        # For preview, extract only the body content (avoid nested html/head/body)
+        if embed_images:
+            # Get inner content of body, not the body tag itself
+            body_content = "".join(str(child) for child in body.children)
+            # Re-parse just the body content
+            soup = BeautifulSoup(f"<div>{body_content}</div>", "lxml")
+            body = soup.find("div")
+
+        # Handle images based on context
+        if embed_images and image_map:
+            # Convert image src to base64 data URLs for preview
+            # Handle regular <img> tags
+            for img in soup.find_all("img"):
+                src = img.get("src", "")
+                if src and not src.startswith("data:"):
+                    data_url = self._find_image_in_map(src, chapter.html_path, image_map)
+                    if data_url:
+                        img["src"] = data_url
+
+            # Handle SVG <image> tags with xlink:href (common for EPUB covers)
+            for img in soup.find_all("image"):
+                # SVG image elements use xlink:href or href
+                src = img.get("xlink:href") or img.get("href", "")
+                if src and not src.startswith("data:"):
+                    data_url = self._find_image_in_map(src, chapter.html_path, image_map)
+                    if data_url:
+                        # Update both xlink:href and href for compatibility
+                        if img.get("xlink:href"):
+                            img["xlink:href"] = data_url
+                        if img.get("href"):
+                            img["href"] = data_url
+        elif not embed_images:
+            # For EPUB generation, keep images as-is (they're handled separately)
+            pass
 
         # Build paragraph lookup by text (for matching)
         para_translations = {}
@@ -150,10 +196,138 @@ class EPUBGenerator:
                     # Replace original tag
                     tag.replace_with(container)
 
+        # For preview mode, return just the body content (the wrapping div)
+        if embed_images and body:
+            return str(body)
         return str(soup)
 
-    async def generate_preview(self, chapter_id: Optional[str] = None) -> str:
-        """Generate HTML preview of bilingual content."""
+    def _find_image_in_map(
+        self, src: str, chapter_path: Optional[str], image_map: Dict[str, str]
+    ) -> Optional[str]:
+        """Find an image in the image map using multiple matching strategies.
+
+        Args:
+            src: The src/href attribute from the image tag
+            chapter_path: The path of the chapter HTML file in the EPUB
+            image_map: Map of image paths to base64 data URLs
+
+        Returns:
+            The base64 data URL if found, None otherwise
+        """
+        # Strategy 1: Direct match
+        if src in image_map:
+            return image_map[src]
+
+        # Strategy 2: Normalize the path using chapter location
+        if chapter_path:
+            normalized_src = self._normalize_image_path(src, chapter_path)
+            if normalized_src in image_map:
+                return image_map[normalized_src]
+
+        # Strategy 3: Try just the filename
+        filename = os.path.basename(src)
+        if filename in image_map:
+            return image_map[filename]
+
+        # Strategy 4: Try stripping leading ./ and ../
+        clean_src = src
+        while clean_src.startswith("./") or clean_src.startswith("../"):
+            if clean_src.startswith("./"):
+                clean_src = clean_src[2:]
+            elif clean_src.startswith("../"):
+                clean_src = clean_src[3:]
+        if clean_src in image_map:
+            return image_map[clean_src]
+
+        return None
+
+    def _normalize_image_path(self, src: str, chapter_path: str) -> str:
+        """Normalize image path relative to the EPUB root.
+
+        Args:
+            src: The src attribute from the img tag
+            chapter_path: The path of the chapter HTML file in the EPUB
+        """
+        if src.startswith("data:") or src.startswith("http"):
+            return src
+
+        # Get the directory of the chapter
+        chapter_dir = os.path.dirname(chapter_path)
+
+        # Resolve relative path
+        if src.startswith("../"):
+            # Go up from chapter directory and resolve
+            full_path = os.path.normpath(os.path.join(chapter_dir, src))
+        elif src.startswith("./"):
+            full_path = os.path.normpath(os.path.join(chapter_dir, src[2:]))
+        elif not src.startswith("/"):
+            full_path = os.path.normpath(os.path.join(chapter_dir, src))
+        else:
+            full_path = src.lstrip("/")
+
+        return full_path
+
+    async def _load_images_from_epub(self, epub_path: str) -> Dict[str, str]:
+        """Load all images from the EPUB and convert to base64 data URLs.
+
+        Returns:
+            Dict mapping image file paths to base64 data URLs
+        """
+        image_map = {}
+
+        try:
+            book = epub.read_epub(epub_path)
+
+            for item in book.get_items():
+                if item.get_type() == ebooklib.ITEM_IMAGE:
+                    file_name = item.get_name()
+                    content = item.get_content()
+                    media_type = item.media_type or "image/jpeg"
+
+                    # Convert to base64 data URL
+                    b64_content = base64.b64encode(content).decode("utf-8")
+                    data_url = f"data:{media_type};base64,{b64_content}"
+
+                    # Store with multiple path variations for robust matching
+                    # 1. Full path as-is
+                    image_map[file_name] = data_url
+
+                    # 2. Just the filename
+                    basename = os.path.basename(file_name)
+                    image_map[basename] = data_url
+
+                    # 3. With ../ prefix (common in EPUB HTML)
+                    image_map[f"../{file_name}"] = data_url
+
+                    # 4. Without leading directories
+                    if "/" in file_name:
+                        # e.g., "images/00001.jpeg" -> also store as-is
+                        pass  # Already stored above
+
+        except Exception as e:
+            # Log error but don't fail - preview will just have missing images
+            print(f"Error loading images from EPUB: {e}")
+
+        return image_map
+
+    async def generate_preview(self, chapter_id: Optional[str] = None, width: str = "medium") -> str:
+        """Generate HTML preview of bilingual content.
+
+        Args:
+            chapter_id: Optional chapter ID to preview specific chapter
+            width: Content width option (narrow/medium/wide/full)
+        """
+        # Load project to get the original EPUB path
+        result = await self.db.execute(
+            select(Project).where(Project.id == self.project_id)
+        )
+        project = result.scalar_one_or_none()
+
+        # Load images from original EPUB for preview
+        image_map: Dict[str, str] = {}
+        if project and project.original_file_path:
+            image_map = await self._load_images_from_epub(project.original_file_path)
+
         if chapter_id:
             result = await self.db.execute(
                 select(Chapter)
@@ -179,61 +353,79 @@ class EPUBGenerator:
         html_parts = [
             "<html><head>",
             "<style>",
-            self._get_bilingual_css().decode("utf-8"),
+            self._get_bilingual_css(width=width).decode("utf-8"),
             "</style>",
             "</head><body>",
         ]
 
         for chapter in chapters:
-            html_parts.append(await self._generate_bilingual_chapter(chapter))
+            html_parts.append(
+                await self._generate_bilingual_chapter(chapter, embed_images=True, image_map=image_map)
+            )
 
         html_parts.append("</body></html>")
         return "\n".join(html_parts)
 
-    def _get_bilingual_css(self) -> bytes:
-        """Get CSS styles for bilingual layout."""
-        css = """
-        .bilingual-pair {
-            margin-bottom: 1.5em;
-            padding: 0.5em;
-            border-left: 3px solid #e0e0e0;
-        }
+    def _get_bilingual_css(self, width: str = "medium") -> bytes:
+        """Get CSS styles for bilingual layout.
 
-        .original-text {
+        Args:
+            width: Content width option (narrow/medium/wide/full)
+        """
+        # Width mappings
+        width_map = {
+            "narrow": "600px",
+            "medium": "800px",
+            "wide": "1000px",
+            "full": "100%",
+        }
+        max_width = width_map.get(width, "800px")
+
+        css = f"""
+        body {{
+            max-width: {max_width};
+            margin: 0 auto;
+            padding: 1em 2em;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: #fafafa;
+        }}
+
+        .bilingual-pair {{
+            margin-bottom: 1.5em;
+            padding: 0.5em 0;
+            border-bottom: 1px solid #e0e0e0;
+        }}
+
+        .original-text {{
             color: #333;
             margin-bottom: 0.5em;
-        }
+        }}
 
-        .translated-text {
+        .translated-text {{
             color: #0066cc;
-            font-style: italic;
-        }
+        }}
 
         .original-text p,
-        .translated-text p {
+        .translated-text p {{
             margin: 0;
-        }
+        }}
 
         /* Headings */
         .bilingual-pair h1,
         .bilingual-pair h2,
-        .bilingual-pair h3 {
+        .bilingual-pair h3,
+        .bilingual-pair h4,
+        .bilingual-pair h5,
+        .bilingual-pair h6 {{
             margin: 0.25em 0;
-        }
+        }}
 
-        /* Responsive */
-        @media (min-width: 768px) {
-            .bilingual-pair {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 1em;
-                border-left: none;
-                border-bottom: 1px solid #e0e0e0;
-            }
-
-            .translated-text {
-                font-style: normal;
-            }
-        }
+        /* Images centered */
+        img, svg {{
+            display: block;
+            margin: 1em auto;
+            max-width: 100%;
+        }}
         """
         return css.encode("utf-8")
