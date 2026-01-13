@@ -63,7 +63,6 @@ class TranslationPipeline:
 
     Supports:
     - Single-step translation (direct, author-aware, optimization)
-    - Multi-step iterative translation
     - Streaming responses
     - Prompt preview
     """
@@ -132,59 +131,6 @@ class TranslationPipeline:
         async for chunk in self.gateway.stream(prompt_bundle):
             if not chunk.is_complete:
                 yield chunk.content
-
-    async def translate_iterative(
-        self,
-        context: TranslationContext,
-        steps: int = 2,
-    ) -> TranslationResult:
-        """Multi-step iterative translation.
-
-        Performs translation in multiple passes:
-        1. Step 1: Create literal/accurate translation
-        2. Step 2: Refine for naturalness
-
-        Args:
-            context: Translation context
-            steps: Number of refinement steps (default 2)
-
-        Returns:
-            Final TranslationResult after all steps
-        """
-        from ..strategies import IterativeStrategy
-
-        # Step 1: Initial translation (literal)
-        step1_strategy = IterativeStrategy(step=1)
-        step1_bundle = step1_strategy.build(context)
-
-        step1_response = await self.gateway.call(step1_bundle)
-        literal_text = self.output_processor._extract_translation(step1_response.content)
-
-        # Step 2: Refinement
-        step2_context = context.model_copy()
-        step2_context.existing = ExistingTranslation(
-            text=literal_text,
-            provider=self.config.provider,
-            model=self.config.model,
-            version=1,
-        )
-
-        step2_strategy = IterativeStrategy(step=2)
-        step2_bundle = step2_strategy.build(step2_context)
-
-        step2_response = await self.gateway.call(step2_bundle)
-
-        # Process final result
-        result = self.output_processor.process(step2_response, step2_context)
-        result.step_index = 2
-        result.total_steps = steps
-
-        # Add tokens from both steps
-        result.tokens_used = (
-            step1_response.usage.total_tokens + step2_response.usage.total_tokens
-        )
-
-        return result
 
     def preview(self, context: TranslationContext) -> dict:
         """Preview prompts without making LLM call.

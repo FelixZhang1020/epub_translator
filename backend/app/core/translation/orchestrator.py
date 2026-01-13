@@ -53,7 +53,6 @@ class TranslationOrchestrator:
         resume: bool = False,
         custom_system_prompt: Optional[str] = None,
         custom_user_prompt: Optional[str] = None,
-        use_iterative: bool = False,
     ):
         """Initialize the orchestrator.
 
@@ -68,7 +67,6 @@ class TranslationOrchestrator:
             resume: Whether to resume from checkpoint
             custom_system_prompt: Optional custom system prompt
             custom_user_prompt: Optional custom user prompt
-            use_iterative: Whether to use iterative (2-step) translation
         """
         self.task_id = task_id
 
@@ -100,7 +98,6 @@ class TranslationOrchestrator:
         self.resume = resume
         self.custom_system_prompt = custom_system_prompt
         self.custom_user_prompt = custom_user_prompt
-        self.use_iterative = use_iterative
         self._should_stop = False
 
         # Log configuration for debugging
@@ -206,7 +203,6 @@ class TranslationOrchestrator:
             "author_aware": TranslationMode.AUTHOR_AWARE,
             "optimization": TranslationMode.OPTIMIZATION,
             "direct": TranslationMode.DIRECT,
-            "iterative": TranslationMode.ITERATIVE,
         }
         return mode_mapping.get(mode_str, TranslationMode.AUTHOR_AWARE)
 
@@ -340,10 +336,7 @@ class TranslationOrchestrator:
             )
 
             # Execute translation
-            if self.use_iterative:
-                result = await pipeline.translate_iterative(context)
-            else:
-                result = await pipeline.translate(context)
+            result = await pipeline.translate(context)
 
             # Save translation
             translation = Translation(

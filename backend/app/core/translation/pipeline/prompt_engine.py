@@ -13,7 +13,6 @@ from ..strategies import (
     DirectTranslationStrategy,
     AuthorAwareStrategy,
     OptimizationStrategy,
-    IterativeStrategy,
 )
 from app.utils.text import safe_truncate
 
@@ -33,7 +32,6 @@ class PromptEngine:
         TranslationMode.DIRECT: DirectTranslationStrategy,
         TranslationMode.AUTHOR_AWARE: AuthorAwareStrategy,
         TranslationMode.OPTIMIZATION: OptimizationStrategy,
-        TranslationMode.ITERATIVE: IterativeStrategy,
     }
 
     @classmethod

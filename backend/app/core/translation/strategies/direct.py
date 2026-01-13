@@ -46,9 +46,10 @@ class DirectTranslationStrategy(PromptStrategy):
         """
         variables = self.get_template_variables(context)
 
-        # Load prompts from .md files
+        # Load prompts from .md files using configured default template
         try:
-            template = PromptLoader.load_template("translation", "default")
+            template_name = PromptLoader.get_default_template("translation")
+            template = PromptLoader.load_template("translation", template_name)
             system_prompt = PromptLoader.render(template.system_prompt, variables)
             user_prompt = PromptLoader.render(template.user_prompt_template, variables)
         except Exception as e:

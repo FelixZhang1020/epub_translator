@@ -23,7 +23,7 @@ from app.core.translation.orchestrator import TranslationOrchestrator
 from app.core.llm.config_service import LLMConfigService
 from app.core.llm.runtime_config import LLMConfigResolver, LLMRuntimeConfig
 from app.core.prompts.loader import PromptLoader
-from app.core.llm.prompts import CONVERSATION_SYSTEM_PROMPT
+# CONVERSATION_SYSTEM_PROMPT moved to backend/prompts/discussion/system.default.md
 from app.core.translation.models import TranslationMode
 from app.core.translation.pipeline import ContextBuilder
 from app.api.dependencies import validate_project_exists
@@ -673,6 +673,7 @@ class ConversationResponse(BaseModel):
     original_text: str
     initial_translation: str
     current_translation: str
+    is_locked: bool = False  # Whether the translation is locked/confirmed
     messages: List[ConversationMessageResponse]
     provider: str
     model: str
@@ -716,11 +717,12 @@ def _build_conversation_messages(
     new_user_message: str,
 ) -> List[dict]:
     """Build message list for LLM including context and history."""
-    messages = [
-        {"role": "system", "content": CONVERSATION_SYSTEM_PROMPT},
-        {
-            "role": "user",
-            "content": f"""Context for this conversation:
+    # Load system prompt from template
+    template = PromptLoader.load_template("optimization")
+    system_prompt = template.system_prompt
+
+    # Build initial context message
+    initial_context = f"""Context for this conversation:
 
 Original text (English):
 {conversation.original_text}
@@ -729,7 +731,10 @@ Current translation (Chinese):
 {current_translation}
 
 Please help me understand and improve this translation."""
-        },
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": initial_context},
         {
             "role": "assistant",
             "content": "I understand. I can help you analyze, discuss, or improve this translation. Feel free to ask questions about translation choices, request alternatives, or suggest modifications."
@@ -773,12 +778,27 @@ async def start_conversation(
     conversation = result.scalar_one_or_none()
 
     if conversation:
-        # Get current translation
+        # Get current translation - find the LATEST version for the paragraph
+        # First get the original translation to find the paragraph_id
         result = await db.execute(
             select(Translation).where(Translation.id == translation_id)
         )
-        translation = result.scalar_one_or_none()
-        current_translation = translation.translated_text if translation else conversation.initial_translation
+        original_translation = result.scalar_one_or_none()
+
+        if original_translation:
+            # Get the latest translation for this paragraph (may be newer than original)
+            result = await db.execute(
+                select(Translation)
+                .where(Translation.paragraph_id == original_translation.paragraph_id)
+                .order_by(Translation.version.desc())
+                .limit(1)
+            )
+            latest_translation = result.scalar_one_or_none()
+            current_translation = latest_translation.translated_text if latest_translation else conversation.initial_translation
+            is_locked = latest_translation.is_confirmed if latest_translation else False
+        else:
+            current_translation = conversation.initial_translation
+            is_locked = False
 
         return ConversationResponse(
             id=conversation.id,
@@ -786,6 +806,7 @@ async def start_conversation(
             original_text=conversation.original_text,
             initial_translation=conversation.initial_translation,
             current_translation=current_translation,
+            is_locked=is_locked,
             messages=[
                 ConversationMessageResponse(
                     id=msg.id,
@@ -844,6 +865,16 @@ async def start_conversation(
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
+    # Check if the latest translation for this paragraph is locked
+    result = await db.execute(
+        select(Translation)
+        .where(Translation.paragraph_id == translation.paragraph_id)
+        .order_by(Translation.version.desc())
+        .limit(1)
+    )
+    latest_translation = result.scalar_one_or_none()
+    is_locked = latest_translation.is_confirmed if latest_translation else False
+
     # Create new conversation
     conversation = TranslationConversation(
         id=str(uuid.uuid4()),
@@ -863,6 +894,7 @@ async def start_conversation(
         original_text=conversation.original_text,
         initial_translation=conversation.initial_translation,
         current_translation=translation.translated_text,
+        is_locked=is_locked,
         messages=[],
         provider=conversation.provider,
         model=conversation.model,
@@ -886,12 +918,27 @@ async def get_conversation(
     if not conversation:
         raise HTTPException(status_code=404, detail="No conversation found for this translation")
 
-    # Get current translation
+    # Get current translation - find the LATEST version for the paragraph
+    # First get the original translation to find the paragraph_id
     result = await db.execute(
         select(Translation).where(Translation.id == translation_id)
     )
-    translation = result.scalar_one_or_none()
-    current_translation = translation.translated_text if translation else conversation.initial_translation
+    original_translation = result.scalar_one_or_none()
+
+    if original_translation:
+        # Get the latest translation for this paragraph (may be newer than original)
+        result = await db.execute(
+            select(Translation)
+            .where(Translation.paragraph_id == original_translation.paragraph_id)
+            .order_by(Translation.version.desc())
+            .limit(1)
+        )
+        latest_translation = result.scalar_one_or_none()
+        current_translation = latest_translation.translated_text if latest_translation else conversation.initial_translation
+        is_locked = latest_translation.is_confirmed if latest_translation else False
+    else:
+        current_translation = conversation.initial_translation
+        is_locked = False
 
     return ConversationResponse(
         id=conversation.id,
@@ -899,6 +946,7 @@ async def get_conversation(
         original_text=conversation.original_text,
         initial_translation=conversation.initial_translation,
         current_translation=current_translation,
+        is_locked=is_locked,
         messages=[
             ConversationMessageResponse(
                 id=msg.id,
@@ -1056,8 +1104,7 @@ async def apply_suggestion(
 ):
     """Apply a suggested translation from the conversation.
 
-    Uses the optimization prompt to incorporate the user's suggested changes
-    into the full paragraph translation, ensuring natural integration.
+    Directly saves the LLM's suggested translation without additional processing.
     """
     # Get the message with suggestion
     result = await db.execute(
@@ -1073,130 +1120,55 @@ async def apply_suggestion(
     if message.suggestion_applied:
         raise HTTPException(status_code=400, detail="Suggestion already applied")
 
-    # Get the translation with paragraph to get original text
+    # Get the translation to find paragraph_id
     result = await db.execute(
-        select(Translation)
-        .options(selectinload(Translation.paragraph))
-        .where(Translation.id == translation_id)
+        select(Translation).where(Translation.id == translation_id)
     )
     translation = result.scalar_one_or_none()
     if not translation:
         raise HTTPException(status_code=404, detail="Translation not found")
 
-    # Get the conversation to retrieve LLM config info
+    # Check if the latest translation for this paragraph is locked/confirmed
     result = await db.execute(
-        select(TranslationConversation).where(
-            TranslationConversation.translation_id == translation_id
-        )
+        select(Translation)
+        .where(Translation.paragraph_id == translation.paragraph_id)
+        .order_by(Translation.version.desc())
+        .limit(1)
     )
-    conversation = result.scalar_one_or_none()
+    latest_translation = result.scalar_one_or_none()
+    if latest_translation and latest_translation.is_confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail="Cannot apply to a locked/confirmed translation"
+        )
 
-    # Resolve LLM configuration with stage-specific defaults
-    try:
-        if request.api_key or request.model:
-            # Direct parameters provided - use old service for backward compatibility
-            old_config = await LLMConfigService.resolve_config(
-                db,
-                api_key=request.api_key,
-                model=request.model,
-                provider=request.provider,
-                config_id=request.config_id,
-            )
-            llm_config = LLMRuntimeConfig(
-                provider=old_config.provider,
-                model=old_config.model,
-                api_key=old_config.api_key,
-                base_url=old_config.base_url,
-                temperature=old_config.temperature,
-                config_id=old_config.config_id,
-                config_name=old_config.config_name,
-            )
-        else:
-            # Use new resolver with stage-specific defaults for optimization
-            llm_config = await LLMConfigResolver.resolve(
-                db,
-                config_id=request.config_id,
-                stage="optimization",
-            )
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    # Get current version for new translation
+    current_version = latest_translation.version if latest_translation else translation.version
 
-    # Load optimization prompt template
-    optimization_template = PromptLoader.load_template("optimization")
+    # Create new translation version with the suggested text directly
+    new_translation = Translation(
+        id=str(uuid.uuid4()),
+        paragraph_id=translation.paragraph_id,
+        translated_text=message.suggested_translation,  # Save directly, no LLM call
+        mode="discussion",
+        provider="chat",
+        model="user_applied",
+        version=current_version + 1,
+        is_manual_edit=True,
+        tokens_used=0,
+    )
+    db.add(new_translation)
 
-    # Prepare variables for the optimization prompt using canonical names
-    variables = {
-        "content": {
-            "source": translation.paragraph.original_text,
-            "target": translation.translated_text,
-        },
-        "pipeline": {
-            "suggested_changes": message.suggested_translation,
-        },
+    # Mark suggestion as applied
+    message.suggestion_applied = True
+
+    await db.commit()
+
+    return {
+        "status": "applied",
+        "new_translation": message.suggested_translation,
+        "tokens_used": 0,
     }
-
-    # Render the prompts
-    system_prompt = PromptLoader.render(optimization_template.system_prompt, variables)
-    user_prompt = PromptLoader.render(optimization_template.user_prompt_template, variables)
-
-    # Build messages for LLM
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": user_prompt},
-    ]
-
-    # Build kwargs for LiteLLM
-    kwargs = {"api_key": llm_config.api_key}
-    if llm_config.base_url:
-        kwargs["api_base"] = llm_config.base_url
-
-    try:
-        # Call LLM to optimize the translation
-        response = await acompletion(
-            model=llm_config.get_litellm_model(),
-            messages=messages,
-            **kwargs,
-        )
-
-        optimized_translation = response.choices[0].message.content.strip()
-        tokens_used = response.usage.total_tokens if response.usage else 0
-
-        # Update last used timestamp if using stored config
-        if llm_config.config_id:
-            await LLMConfigService.update_last_used(db, llm_config.config_id)
-
-        # Create new translation version with optimized text
-        new_translation = Translation(
-            id=str(uuid.uuid4()),
-            paragraph_id=translation.paragraph_id,
-            translated_text=optimized_translation,
-            mode="optimization",
-            provider=llm_config.provider,
-            model=llm_config.model,
-            version=translation.version + 1,
-            is_manual_edit=False,
-            tokens_used=tokens_used,
-        )
-        db.add(new_translation)
-
-        # Mark suggestion as applied
-        message.suggestion_applied = True
-
-        # Update conversation stats if available
-        if conversation:
-            conversation.total_tokens_used += tokens_used
-
-        await db.commit()
-
-        return {
-            "status": "applied",
-            "new_translation": optimized_translation,
-            "tokens_used": tokens_used,
-        }
-
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=500, detail=f"Optimization failed: {str(e)}")
 
 
 @router.delete("/translation/conversation/{translation_id}")
@@ -1396,10 +1368,5 @@ async def list_translation_modes() -> List[Dict[str, str]]:
             "value": TranslationMode.OPTIMIZATION.value,
             "name": "Translation Optimization",
             "description": "Improve an existing translation for naturalness and accuracy",
-        },
-        {
-            "value": TranslationMode.ITERATIVE.value,
-            "name": "Iterative Translation",
-            "description": "Two-step process: literal translation followed by refinement",
         },
     ]

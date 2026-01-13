@@ -16,7 +16,6 @@ class TranslationMode(str, Enum):
     DIRECT = "direct"  # Simple direct translation
     AUTHOR_AWARE = "author_aware"  # Style-preserving with author context
     OPTIMIZATION = "optimization"  # Improve existing translation
-    ITERATIVE = "iterative"  # Multi-pass refinement
 
 
 class SourceMaterial(BaseModel):
