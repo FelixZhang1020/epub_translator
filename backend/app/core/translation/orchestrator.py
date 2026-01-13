@@ -10,6 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from app.config import settings
+
 logger = logging.getLogger(__name__)
 
 from app.models.database.base import async_session_maker
@@ -46,6 +48,7 @@ class TranslationOrchestrator:
         custom_user_prompt: Optional[str] = None,
         use_iterative: bool = False,
         temperature: Optional[float] = None,
+        base_url: Optional[str] = None,
     ):
         """Initialize the orchestrator.
 
@@ -58,12 +61,15 @@ class TranslationOrchestrator:
             custom_system_prompt: Optional custom system prompt
             custom_user_prompt: Optional custom user prompt
             use_iterative: Whether to use iterative (2-step) translation
+            temperature: LLM temperature override
+            base_url: Custom API endpoint (for OpenRouter, Ollama, etc.)
         """
         self.task_id = task_id
         self.provider = provider
         self.model = model
         self.api_key = api_key
         self.temperature = temperature
+        self.base_url = base_url
         self.resume = resume
         self.custom_system_prompt = custom_system_prompt
         self.custom_user_prompt = custom_user_prompt
@@ -71,7 +77,7 @@ class TranslationOrchestrator:
         self._should_stop = False
 
         # Log configuration for debugging
-        logger.info(f"[Orchestrator] Initialized: task_id={task_id}, provider={provider}, model={model}, temperature={temperature}")
+        logger.info(f"[Orchestrator] Initialized: task_id={task_id}, provider={provider}, model={model}, temperature={temperature}, base_url={base_url}")
 
     async def run(self):
         """Run the translation task."""
@@ -96,6 +102,7 @@ class TranslationOrchestrator:
                     api_key=self.api_key,
                     mode=mode,
                     temperature=self.temperature,
+                    base_url=self.base_url,
                 )
                 pipeline = TranslationPipeline(config)
 
@@ -262,8 +269,8 @@ class TranslationOrchestrator:
                     mode=mode,
                 )
 
-                # Add small delay between requests to avoid overloading API
-                await asyncio.sleep(1.0)
+                # Add configurable delay between requests to avoid overloading API
+                await asyncio.sleep(settings.translation_throttle_delay)
 
     async def _should_stop_processing(
         self, db: AsyncSession, task: TranslationTask

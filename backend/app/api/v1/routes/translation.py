@@ -23,15 +23,8 @@ from app.core.translation.orchestrator import TranslationOrchestrator
 from app.core.llm.config_service import LLMConfigService
 from app.core.prompts.loader import PromptLoader
 from app.core.llm.prompts import CONVERSATION_SYSTEM_PROMPT
-from app.core.translation.models import (
-    TranslationMode,
-    TranslationContext,
-    SourceMaterial,
-    BookAnalysisContext,
-    AdjacentContext,
-    ExistingTranslation,
-)
-from app.core.translation.pipeline import PromptEngine, ContextBuilder
+from app.core.translation.models import TranslationMode
+from app.core.translation.pipeline import ContextBuilder
 from app.api.dependencies import validate_project_exists
 from litellm import acompletion
 import uuid
@@ -158,6 +151,8 @@ async def start_translation(
         api_key=llm_config.api_key,
         custom_system_prompt=request.custom_system_prompt,
         custom_user_prompt=request.custom_user_prompt,
+        temperature=llm_config.temperature,
+        base_url=llm_config.base_url,
     )
     background_tasks.add_task(orchestrator.run)
 
@@ -269,6 +264,8 @@ async def resume_translation(
         model=task.model,
         api_key=llm_config.api_key,
         resume=True,
+        temperature=llm_config.temperature,
+        base_url=llm_config.base_url,
     )
     background_tasks.add_task(orchestrator.run)
 
@@ -1112,238 +1109,6 @@ async def clear_conversation(
     await db.commit()
 
     return {"status": "cleared"}
-
-
-# =============================================================================
-# Prompt Preview Endpoints
-# =============================================================================
-
-
-class PromptPreviewRequest(BaseModel):
-    """Request for prompt preview."""
-
-    source_text: str = Field(..., description="Source text to translate")
-    mode: str = Field(default="direct", description="Translation mode")
-    target_language: str = Field(default="zh", description="Target language")
-
-    # Book analysis context (optional)
-    author_biography: Optional[str] = None
-    writing_style: Optional[str] = None
-    tone: Optional[str] = None
-    target_audience: Optional[str] = None
-    key_terminology: Optional[Dict[str, str]] = None
-    translation_principles: Optional[Dict[str, Any]] = None
-
-    # Adjacent context (optional)
-    previous_original: Optional[str] = None
-    previous_translation: Optional[str] = None
-
-    # For optimization mode
-    existing_translation: Optional[str] = None
-
-    # Custom prompts
-    custom_system_prompt: Optional[str] = None
-    custom_user_prompt: Optional[str] = None
-
-
-class VariableInfo(BaseModel):
-    """Information about a template variable."""
-
-    value: str
-    type: str
-    used_in: List[str]
-
-
-class PromptPreviewResponse(BaseModel):
-    """Response with rendered prompts and variable information."""
-
-    system_prompt: Optional[str] = None
-    user_prompt: Optional[str] = None
-    variables: Dict[str, VariableInfo] = Field(default_factory=dict)
-    mode: str
-    estimated_tokens: int = 0
-    temperature: float = 0.3
-    max_tokens: int = 4096
-
-
-@router.post("/translation/preview")
-async def preview_prompts(
-    request: PromptPreviewRequest,
-) -> PromptPreviewResponse:
-    """Preview rendered prompts with variables highlighted.
-
-    This endpoint allows you to see exactly what prompts will be sent to the LLM
-    before starting a translation. All template variables are shown with their
-    values and where they are used.
-
-    Use this to:
-    - Verify prompt content before translation
-    - Debug custom prompts
-    - Understand how book analysis affects prompts
-    """
-    # Convert mode string to enum
-    try:
-        mode = TranslationMode(request.mode)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid mode: {request.mode}. Valid modes: {[m.value for m in TranslationMode]}",
-        )
-
-    # Build source material
-    source = SourceMaterial(text=request.source_text)
-
-    # Build book analysis context if any fields provided
-    book_analysis = None
-    if any([
-        request.author_biography,
-        request.writing_style,
-        request.tone,
-        request.key_terminology,
-        request.translation_principles,
-    ]):
-        from app.core.translation.models.context import TranslationPrinciples
-
-        principles = None
-        if request.translation_principles:
-            principles = TranslationPrinciples(**request.translation_principles)
-
-        book_analysis = BookAnalysisContext(
-            author_biography=request.author_biography,
-            writing_style=request.writing_style,
-            tone=request.tone,
-            target_audience=request.target_audience,
-            key_terminology=request.key_terminology or {},
-            translation_principles=principles,
-        )
-
-    # Build adjacent context if provided
-    adjacent = None
-    if request.previous_original:
-        adjacent = AdjacentContext(
-            previous_original=request.previous_original,
-            previous_translation=request.previous_translation,
-        )
-
-    # Build existing translation for optimization mode
-    existing = None
-    if mode == TranslationMode.OPTIMIZATION and request.existing_translation:
-        existing = ExistingTranslation(text=request.existing_translation)
-
-    # Create context
-    context = TranslationContext(
-        source=source,
-        target_language=request.target_language,
-        mode=mode,
-        book_analysis=book_analysis,
-        adjacent=adjacent,
-        existing=existing,
-        custom_system_prompt=request.custom_system_prompt,
-        custom_user_prompt=request.custom_user_prompt,
-    )
-
-    # Get preview with highlights
-    preview = PromptEngine.preview_with_highlights(context)
-
-    # Convert to response format
-    variables = {}
-    for name, info in preview.get("variables", {}).items():
-        variables[name] = VariableInfo(
-            value=info.get("value", ""),
-            type=info.get("type", "str"),
-            used_in=info.get("used_in", []),
-        )
-
-    return PromptPreviewResponse(
-        system_prompt=preview.get("system_prompt"),
-        user_prompt=preview.get("user_prompt"),
-        variables=variables,
-        mode=preview.get("mode", request.mode),
-        estimated_tokens=preview.get("estimated_tokens", 0),
-        temperature=preview.get("temperature", 0.3),
-        max_tokens=preview.get("max_tokens", 4096),
-    )
-
-
-@router.post("/translation/preview/paragraph/{paragraph_id}")
-async def preview_paragraph_prompts(
-    paragraph_id: str,
-    mode: str = "author_aware",
-    include_adjacent: bool = True,
-    custom_system_prompt: Optional[str] = None,
-    custom_user_prompt: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-) -> PromptPreviewResponse:
-    """Preview prompts for a specific paragraph from the database.
-
-    This endpoint loads the paragraph and its associated project/analysis
-    from the database and generates a preview of the prompts that would
-    be used for translation.
-    """
-    # Load paragraph with chapter and project
-    result = await db.execute(
-        select(Paragraph)
-        .options(
-            selectinload(Paragraph.chapter),
-            selectinload(Paragraph.translations),
-        )
-        .where(Paragraph.id == paragraph_id)
-    )
-    paragraph = result.scalar_one_or_none()
-    if not paragraph:
-        raise HTTPException(status_code=404, detail="Paragraph not found")
-
-    # Load project with analysis
-    result = await db.execute(
-        select(Project)
-        .options(selectinload(Project.analysis))
-        .where(Project.id == paragraph.chapter.project_id)
-    )
-    project = result.scalar_one_or_none()
-    if not project:
-        raise HTTPException(status_code=404, detail="Project not found")
-
-    # Convert mode
-    try:
-        translation_mode = TranslationMode(mode)
-    except ValueError:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid mode: {mode}. Valid modes: {[m.value for m in TranslationMode]}",
-        )
-
-    # Build context using ContextBuilder
-    context_builder = ContextBuilder(db)
-    context = await context_builder.build(
-        paragraph=paragraph,
-        project=project,
-        mode=translation_mode,
-        include_adjacent=include_adjacent,
-        custom_system_prompt=custom_system_prompt,
-        custom_user_prompt=custom_user_prompt,
-    )
-
-    # Get preview
-    preview = PromptEngine.preview_with_highlights(context)
-
-    # Convert to response format
-    variables = {}
-    for name, info in preview.get("variables", {}).items():
-        variables[name] = VariableInfo(
-            value=info.get("value", ""),
-            type=info.get("type", "str"),
-            used_in=info.get("used_in", []),
-        )
-
-    return PromptPreviewResponse(
-        system_prompt=preview.get("system_prompt"),
-        user_prompt=preview.get("user_prompt"),
-        variables=variables,
-        mode=preview.get("mode", mode),
-        estimated_tokens=preview.get("estimated_tokens", 0),
-        temperature=preview.get("temperature", 0.3),
-        max_tokens=preview.get("max_tokens", 4096),
-    )
 
 
 class UpdateTranslationRequest(BaseModel):

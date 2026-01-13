@@ -1,5 +1,6 @@
 """Upload API routes."""
 
+import asyncio
 import shutil
 from pathlib import Path
 
@@ -17,6 +18,22 @@ from app.api.dependencies import ValidatedProject
 router = APIRouter()
 
 
+def _save_upload_file(file_obj, dest_path: Path) -> None:
+    """Save uploaded file to disk (blocking, run in executor)."""
+    with open(dest_path, "wb") as buffer:
+        shutil.copyfileobj(file_obj, buffer)
+
+
+def _move_file(src: str, dst: str) -> None:
+    """Move file (blocking, run in executor)."""
+    shutil.move(src, dst)
+
+
+def _delete_file(path: Path) -> None:
+    """Delete file if exists (blocking, run in executor)."""
+    path.unlink(missing_ok=True)
+
+
 @router.post("/upload")
 async def upload_epub(
     file: UploadFile = File(...),
@@ -28,9 +45,10 @@ async def upload_epub(
         raise HTTPException(status_code=400, detail="Only EPUB files are allowed")
 
     # Save to temporary location first (need project_id for final location)
+    # Use run_in_executor to avoid blocking the event loop
     temp_path = settings.upload_dir / f"temp_{file.filename}"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _save_upload_file, file.file, temp_path)
 
     try:
         # Parse EPUB with V2 parser (lxml-based)
@@ -59,9 +77,9 @@ async def upload_epub(
         # Initialize project directory structure
         ProjectStorage.initialize_project_structure(project.id)
 
-        # Move file to project-scoped location
+        # Move file to project-scoped location (run in executor)
         final_path = ProjectStorage.get_original_epub_path(project.id)
-        shutil.move(str(temp_path), str(final_path))
+        await loop.run_in_executor(None, _move_file, str(temp_path), str(final_path))
 
         # Update project with final file path
         project.original_file_path = str(final_path)
@@ -81,8 +99,8 @@ async def upload_epub(
         }
 
     except Exception as e:
-        # Clean up temporary file on error
-        temp_path.unlink(missing_ok=True)
+        # Clean up temporary file on error (run in executor)
+        await loop.run_in_executor(None, _delete_file, temp_path)
         raise HTTPException(status_code=500, detail=str(e))
 
 

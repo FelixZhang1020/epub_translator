@@ -1,8 +1,11 @@
 import axios from 'axios'
 
+// API base URL - shared between axios and fetch calls
+// @ts-ignore
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api/v1'
+
 const client = axios.create({
-  // @ts-ignore
-  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
+  baseURL: API_BASE_URL,
 })
 
 export interface Project {
@@ -865,7 +868,7 @@ export const api = {
     })
 
     // Use fetch for SSE with POST (use same base path as axios client)
-    fetch(`/api/v1/analysis/${projectId}/start-stream`, {
+    fetch(`${API_BASE_URL}/analysis/${projectId}/start-stream`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -27,6 +27,7 @@ class PipelineConfig:
     max_retries: int = 3
     temperature: Optional[float] = None  # Override default
     max_tokens: Optional[int] = None  # Override default
+    base_url: Optional[str] = None  # Custom API endpoint (for OpenRouter, Ollama, etc.)
 
 
 class TranslationPipeline:
@@ -53,6 +54,7 @@ class TranslationPipeline:
             provider=config.provider,
             api_key=config.api_key,
             model=config.model,
+            base_url=config.base_url,
         )
         self.output_processor = OutputProcessor()
 

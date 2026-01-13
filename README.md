@@ -1,4 +1,4 @@
-# ePub Translator / 电子书翻译器
+# ePub Translator
 
 <div align="center">
   <a href="https://github.com/FelixZhang1020/epub_translator/stargazers"><img src="https://img.shields.io/github/stars/FelixZhang1020/epub_translator?style=flat-square" alt="GitHub Stars"></a>
@@ -8,37 +8,63 @@
   <a><img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 18+"></a>
 </div>
 
-LLM-powered pipeline that translates English ePub books into Chinese while keeping layout, tone, and context intact. Pick a language below to read the guide.
+<br>
 
-<div align="center" style="margin:12px 0;padding:10px;border:1px solid #d0d7de;border-radius:12px;background:#f6f8fa;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;">
-  <a href="#english-version" style="display:inline-block;padding:8px 14px;border:1px solid #d0d7de;border-radius:10px;text-decoration:none;font-weight:700;color:#0969da;background:#ffffff;">English</a>
-  <a href="#中文版本" style="display:inline-block;padding:8px 14px;border:1px solid #d0d7de;border-radius:10px;text-decoration:none;font-weight:700;color:#0969da;background:#ffffff;">中文</a>
+<div align="center">
+  <table>
+    <tr>
+      <td align="center">
+        <a href="#-english"><img src="https://img.shields.io/badge/English-0969da?style=for-the-badge&logo=readme&logoColor=white" alt="English"></a>
+      </td>
+      <td align="center">
+        <a href="#-中文"><img src="https://img.shields.io/badge/中文-0969da?style=for-the-badge&logo=readme&logoColor=white" alt="中文"></a>
+      </td>
+    </tr>
+  </table>
 </div>
 
-**Open Source Links:** [License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md)
+<div align="center">
 
-## English Version
+**[License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md)**
 
-### Overview
+</div>
+
+---
+
+# 🇬🇧 English
+
+LLM-powered pipeline that translates English ePub books into Chinese while keeping layout, tone, and context intact.
+
+## Overview
+
 ePub Translator is a full-stack app that analyzes, translates, and proofreads ePub books, then exports bilingual output. It supports multiple LLM providers and reference matching to keep terminology consistent across chapters.
 
-### Highlights
-- Multi-LLM: OpenAI, Anthropic Claude, Google Gemini, Alibaba Qwen, DeepSeek
-- Guided pipeline: Analysis → Translation → Proofreading → Export with chapter-level state
-- Style extraction: Automatically captures tone, terminology, and writing style
-- Reference matching: Aligns paragraphs with existing translations for consistency
-- Prompt control: System/user prompts with variables, reusable templates
-- Bilingual export: Generates ePub with original + translated text
-- Web UI: Preview chapters, edit translations, and rerun steps as needed
+## Highlights
 
-### Tech Stack
-- Backend: Python 3.11+, FastAPI, SQLAlchemy, Uvicorn
-- Frontend: React + Vite + TypeScript, Zustand, Ant Design
-- Storage: SQLite by default (override via `DATABASE_URL`)
+- **Multi-LLM**: OpenAI, Anthropic Claude, Google Gemini, Alibaba Qwen, DeepSeek
+- **Guided pipeline**: Analysis → Translation → Proofreading → Export with chapter-level state
+- **Style extraction**: Automatically captures tone, terminology, and writing style
+- **Reference matching**: Aligns paragraphs with existing translations for consistency
+- **Prompt control**: System/user prompts with variables, reusable templates
+- **Bilingual export**: Generates ePub with original + translated text
+- **Web UI**: Preview chapters, edit translations, and rerun steps as needed
 
-### Quick Start
-1) Prerequisites: Python 3.11+, Node.js 18+, npm or pnpm  
-2) Backend setup
+## Tech Stack
+
+| Layer | Technology |
+|-------|------------|
+| Backend | Python 3.11+, FastAPI, SQLAlchemy, Uvicorn |
+| Frontend | React + Vite + TypeScript, Zustand, Ant Design |
+| Storage | SQLite by default (override via `DATABASE_URL`) |
+
+## Quick Start
+
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- npm or pnpm
+
+### Backend Setup
 ```bash
 cd backend
 python -m venv venv
@@ -46,33 +72,41 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env  # add API keys or tweak ports as needed
 ```
-3) Frontend setup
+
+### Frontend Setup
 ```bash
 cd frontend
 npm install
 cp .env.example .env  # adjust API host/port if changed
 ```
-4) Run
+
+### Run
 ```bash
 # Option A: manual
 cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev
+
 # Option B: from repo root (auto installs on first run)
 ./start.sh
 ```
+
 Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 
-### Usage Workflow
-1. Upload an English ePub to create a project.  
-2. Set LLM provider and API key (via UI or backend `.env`).  
-3. Run **Analysis** to extract tone, style, and terminology.  
-4. Run **Translation**; reference matching keeps phrasing consistent.  
-5. Use **Proofreading** to refine outputs or edit paragraphs manually.  
-6. **Export** a bilingual ePub and download from the UI.  
-7. Manage prompts/reference files under `backend/prompts/` or in the UI.
+## Usage Workflow
 
-### Configuration
-#### Backend (`backend/.env`)
+1. Upload an English ePub to create a project
+2. Set LLM provider and API key (via UI or backend `.env`)
+3. Run **Analysis** to extract tone, style, and terminology
+4. Run **Translation**; reference matching keeps phrasing consistent
+5. Use **Proofreading** to refine outputs or edit paragraphs manually
+6. **Export** a bilingual ePub and download from the UI
+7. Manage prompts/reference files under `backend/prompts/` or in the UI
+
+## Configuration
+
+<details>
+<summary><b>Backend Environment Variables</b> (<code>backend/.env</code>)</summary>
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `DEBUG` | Enable debug mode | `true` |
@@ -93,14 +127,21 @@ Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 | `RETRY_DELAY` | Seconds between retries | `1.0` |
 | `CORS_ORIGINS` | Allowed origins list | `["http://localhost:5173"]` |
 
-#### Frontend (`frontend/.env`)
+</details>
+
+<details>
+<summary><b>Frontend Environment Variables</b> (<code>frontend/.env</code>)</summary>
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VITE_PORT` | Frontend dev server port | `5173` |
 | `VITE_API_HOST` | Backend host | `localhost` |
 | `VITE_API_PORT` | Backend port | `8000` |
 
-### Project Structure
+</details>
+
+## Project Structure
+
 ```
 epub_translator/
 ├── backend/
@@ -129,19 +170,23 @@ epub_translator/
 └── tests/                    # Test fixtures
 ```
 
-### API Overview
-- `/api/v1/upload` – ePub upload and project creation  
-- `/api/v1/analysis` – Book content analysis  
-- `/api/v1/translation` – Translation workflow  
-- `/api/v1/proofreading` – Proofreading suggestions  
-- `/api/v1/export` – ePub export  
-- `/api/v1/prompts` – Prompt template management  
-- `/api/v1/llm-settings` – LLM configuration  
-- `/api/v1/workflow` – Workflow state management  
-- `/api/v1/reference` – Reference ePub matching  
-- `/api/v1/preview` – Chapter content preview  
+## API Overview
 
-### Prompt Variables
+| Endpoint | Description |
+|----------|-------------|
+| `/api/v1/upload` | ePub upload and project creation |
+| `/api/v1/analysis` | Book content analysis |
+| `/api/v1/translation` | Translation workflow |
+| `/api/v1/proofreading` | Proofreading suggestions |
+| `/api/v1/export` | ePub export |
+| `/api/v1/prompts` | Prompt template management |
+| `/api/v1/llm-settings` | LLM configuration |
+| `/api/v1/workflow` | Workflow state management |
+| `/api/v1/reference` | Reference ePub matching |
+| `/api/v1/preview` | Chapter content preview |
+
+## Prompt Variables
+
 Templates support `{{variable}}` substitution:
 
 | Namespace | Variables |
@@ -152,33 +197,46 @@ Templates support `{{variable}}` substitution:
 | `derived.*` | `writing_style`, `tone`, `terminology_table` |
 | `user.*` | Custom user-defined variables |
 
-### License
+## License
+
 MIT
 
-## 中文版本
+---
 
-基于大模型的英文 ePub → 中文全流程翻译工具，尽可能保留排版与语境。
+# 🇨🇳 中文
 
-### 概览
+基于大模型的英文 ePub 翻译工具，尽可能保留排版与语境。
+
+## 概览
+
 ePub Translator 是一个全栈应用，自动完成电子书的分析、翻译、校对与双语导出，可按章节跟踪状态，并支持多家大模型。
 
-### 功能亮点
-- 多模型：OpenAI、Anthropic Claude、Google Gemini、阿里通义千问、DeepSeek
-- 四步流程：分析 → 翻译 → 校对 → 导出，按章节管理进度
-- 风格提取：自动识别语气、术语、写作风格
-- 参考对齐：段落与已有译文匹配，保证一致性
-- 提示词管理：系统/用户提示词支持变量与模板复用
-- 双语导出：生成包含原文与译文的 ePub
-- 友好界面：章节预览、人工微调、可重复运行各步骤
+## 功能亮点
 
-### 技术栈
-- 后端：Python 3.11+、FastAPI、SQLAlchemy、Uvicorn
-- 前端：React + Vite + TypeScript、Zustand、Ant Design
-- 存储：默认 SQLite，可通过 `DATABASE_URL` 替换
+- **多模型支持**：OpenAI、Anthropic Claude、Google Gemini、阿里通义千问、DeepSeek
+- **四步流程**：分析 → 翻译 → 校对 → 导出，按章节管理进度
+- **风格提取**：自动识别语气、术语、写作风格
+- **参考对齐**：段落与已有译文匹配，保证一致性
+- **提示词管理**：系统/用户提示词支持变量与模板复用
+- **双语导出**：生成包含原文与译文的 ePub
+- **友好界面**：章节预览、人工微调、可重复运行各步骤
 
-### 快速开始
-1) 前置依赖：Python 3.11+，Node.js 18+，npm 或 pnpm  
-2) 后端
+## 技术栈
+
+| 层级 | 技术 |
+|------|------|
+| 后端 | Python 3.11+、FastAPI、SQLAlchemy、Uvicorn |
+| 前端 | React + Vite + TypeScript、Zustand、Ant Design |
+| 存储 | 默认 SQLite，可通过 `DATABASE_URL` 替换 |
+
+## 快速开始
+
+### 前置依赖
+- Python 3.11+
+- Node.js 18+
+- npm 或 pnpm
+
+### 后端配置
 ```bash
 cd backend
 python -m venv venv
@@ -186,33 +244,41 @@ source venv/bin/activate  # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env  # 填入 API Key 或端口配置
 ```
-3) 前端
+
+### 前端配置
 ```bash
 cd frontend
 npm install
 cp .env.example .env  # 如有端口变动请同步修改
 ```
-4) 运行
+
+### 运行
 ```bash
 # 方案 A：分别启动
 cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev
+
 # 方案 B：在仓库根目录一键启动（首次会自动安装依赖）
 ./start.sh
 ```
+
 访问 http://localhost:5173 ，API 文档在 http://localhost:8000/docs 。
 
-### 使用流程
-1. 上传英文 ePub，创建项目  
-2. 在 UI 或 `.env` 中配置模型提供商与 API Key  
-3. **分析**：抽取语气、风格与术语表  
-4. **翻译**：按段落翻译，并结合参考译文保持一致性  
-5. **校对**：审阅与手工修改译文  
-6. **导出**：生成双语 ePub 并下载  
+## 使用流程
+
+1. 上传英文 ePub，创建项目
+2. 在 UI 或 `.env` 中配置模型提供商与 API Key
+3. **分析**：抽取语气、风格与术语表
+4. **翻译**：按段落翻译，并结合参考译文保持一致性
+5. **校对**：审阅与手工修改译文
+6. **导出**：生成双语 ePub 并下载
 7. 在 `backend/prompts/` 或界面中管理提示词与参考资源
 
-### 配置项
-#### 后端（`backend/.env`）
+## 配置项
+
+<details>
+<summary><b>后端环境变量</b>（<code>backend/.env</code>）</summary>
+
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `DEBUG` | 调试模式 | `true` |
@@ -233,14 +299,21 @@ cd frontend && npm run dev
 | `RETRY_DELAY` | 重试间隔（秒） | `1.0` |
 | `CORS_ORIGINS` | 允许的跨域来源 | `["http://localhost:5173"]` |
 
-#### 前端（`frontend/.env`）
+</details>
+
+<details>
+<summary><b>前端环境变量</b>（<code>frontend/.env</code>）</summary>
+
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | `VITE_PORT` | 前端开发端口 | `5173` |
 | `VITE_API_HOST` | 后端 Host | `localhost` |
 | `VITE_API_PORT` | 后端端口 | `8000` |
 
-### 目录结构
+</details>
+
+## 目录结构
+
 ```
 epub_translator/
 ├── backend/
@@ -269,19 +342,23 @@ epub_translator/
 └── tests/                    # 测试资源
 ```
 
-### API 概览
-- `/api/v1/upload` – 上传 ePub 并创建项目  
-- `/api/v1/analysis` – 书籍内容分析  
-- `/api/v1/translation` – 翻译流程  
-- `/api/v1/proofreading` – 校对建议  
-- `/api/v1/export` – ePub 导出  
-- `/api/v1/prompts` – 提示词管理  
-- `/api/v1/llm-settings` – 模型配置  
-- `/api/v1/workflow` – 流程状态管理  
-- `/api/v1/reference` – 参考译文匹配  
-- `/api/v1/preview` – 章节预览  
+## API 概览
 
-### 提示词变量
+| 端点 | 描述 |
+|------|------|
+| `/api/v1/upload` | 上传 ePub 并创建项目 |
+| `/api/v1/analysis` | 书籍内容分析 |
+| `/api/v1/translation` | 翻译流程 |
+| `/api/v1/proofreading` | 校对建议 |
+| `/api/v1/export` | ePub 导出 |
+| `/api/v1/prompts` | 提示词管理 |
+| `/api/v1/llm-settings` | 模型配置 |
+| `/api/v1/workflow` | 流程状态管理 |
+| `/api/v1/reference` | 参考译文匹配 |
+| `/api/v1/preview` | 章节预览 |
+
+## 提示词变量
+
 模板支持 `{{variable}}` 占位符：
 
 | 命名空间 | 变量 |
@@ -292,5 +369,6 @@ epub_translator/
 | `derived.*` | `writing_style`、`tone`、`terminology_table` |
 | `user.*` | 用户自定义变量 |
 
-### 许可证
+## 许可证
+
 MIT

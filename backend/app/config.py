@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     default_chunk_size: int = 500  # tokens
     max_retries: int = 3
     retry_delay: float = 1.0
+    translation_throttle_delay: float = 0.5  # Delay between API calls (seconds)
 
     # CORS - dynamically built based on frontend_port
     cors_origins: list[str] = []

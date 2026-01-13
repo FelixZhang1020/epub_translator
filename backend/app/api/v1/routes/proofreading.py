@@ -89,6 +89,8 @@ async def run_proofreading_background(
     chapter_ids: Optional[list[str]],
     custom_system_prompt: Optional[str] = None,
     custom_user_prompt: Optional[str] = None,
+    temperature: Optional[float] = None,
+    base_url: Optional[str] = None,
 ):
     """Run proofreading in background."""
     from app.models.database.base import async_session_maker
@@ -102,6 +104,8 @@ async def run_proofreading_background(
             chapter_ids=chapter_ids,
             custom_system_prompt=custom_system_prompt,
             custom_user_prompt=custom_user_prompt,
+            temperature=temperature,
+            base_url=base_url,
         )
         # Update last used timestamp if using stored config
         if config_id:
@@ -153,6 +157,8 @@ async def start_proofreading(
             request.chapter_ids,
             request.custom_system_prompt,
             request.custom_user_prompt,
+            llm_config.temperature,
+            llm_config.base_url,
         )
 
         return ProofreadingSessionResponse(

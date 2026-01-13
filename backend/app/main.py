@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.models.database.base import init_db
-from app.api.v1.routes import upload, translation, preview, export, llm_settings, workflow, analysis, reference, proofreading, prompts, cache
+from app.api.v1.routes import upload, translation, preview, export, llm_settings, workflow, analysis, reference, proofreading, prompts
 from app.api.dependencies import sync_projects_on_startup
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,6 @@ app.include_router(analysis.router, prefix="/api/v1", tags=["analysis"])
 app.include_router(reference.router, prefix="/api/v1", tags=["reference"])
 app.include_router(proofreading.router, prefix="/api/v1", tags=["proofreading"])
 app.include_router(prompts.router, prefix="/api/v1", tags=["prompts"])
-app.include_router(cache.router, prefix="/api/v1", tags=["cache"])
 
 
 @app.get("/")

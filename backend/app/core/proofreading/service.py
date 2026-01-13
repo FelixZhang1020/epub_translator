@@ -111,6 +111,8 @@ class ProofreadingService:
         chapter_ids: Optional[list[str]] = None,
         custom_system_prompt: Optional[str] = None,
         custom_user_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        base_url: Optional[str] = None,
     ) -> None:
         """Run the proofreading process for a session.
 
@@ -123,6 +125,8 @@ class ProofreadingService:
             chapter_ids: Optional list of chapter IDs to proofread
             custom_system_prompt: Optional custom system prompt
             custom_user_prompt: Optional custom user prompt template
+            temperature: LLM temperature override
+            base_url: Custom API endpoint (for OpenRouter, Ollama, etc.)
         """
         # Get session
         result = await db.execute(
@@ -242,16 +246,21 @@ class ProofreadingService:
                 )
 
                 try:
-                    # Call LLM
-                    response = await acompletion(
-                        model=litellm_model,
-                        messages=[
+                    # Call LLM with optional temperature and base_url
+                    llm_kwargs = {
+                        "model": litellm_model,
+                        "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt},
                         ],
-                        api_key=api_key,
-                        response_format={"type": "json_object"},
-                    )
+                        "api_key": api_key,
+                        "response_format": {"type": "json_object"},
+                    }
+                    if temperature is not None:
+                        llm_kwargs["temperature"] = temperature
+                    if base_url:
+                        llm_kwargs["base_url"] = base_url
+                    response = await acompletion(**llm_kwargs)
 
                     content = response.choices[0].message.content
                     logger.info(f"Proofreading paragraph {para.id} raw response: {content}")
