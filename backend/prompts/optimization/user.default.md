@@ -1,10 +1,10 @@
-[Source]
+Source:
 {{content.source}}
 
-[Current translation]
+Current translation:
 {{content.target}}
 
 {{#if pipeline.suggested_changes}}
-[Suggested changes]
+Suggested changes:
 {{pipeline.suggested_changes}}
 {{/if}}

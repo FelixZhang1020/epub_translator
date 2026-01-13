@@ -19,6 +19,7 @@ Goal: Use **JSON** to provide style, tone, audience, genre traits, terminology, 
 {
   "author_name": "Author name; can be empty",
   "author_biography": "Author background (era, nationality, academic/creative background); can be empty",
+  "author_background": "Concise author background in Chinese for downstream prompts; can be empty",
   "writing_style": "Writing style/features (e.g., academically rigorous, accessible, strongly argumentative)",
   "tone": "Tone/attitude (e.g., solemn, gentle, impassioned, ironic)",
   "genre_conventions": "Genre conventions (e.g., theological paper, popular non-fiction, epistolary); empty string if none",
@@ -26,8 +27,8 @@ Goal: Use **JSON** to provide style, tone, audience, genre traits, terminology, 
   "key_terminology": [
     {
       "english_term": "English term",
-      "chinese_translation": "Recommended Chinese rendering",
-      "notes": "Optional notes"
+      "chinese_translation": "Recommended Chinese rendering (REQUIRED: provide actual Chinese translation, use standard/common translation if unsure)",
+      "notes": "Optional usage notes"
     }
   ],
   "translation_principles": {
@@ -50,6 +51,7 @@ Goal: Use **JSON** to provide style, tone, audience, genre traits, terminology, 
    - Words with ambiguity risk
    - Domain-specific terms (theology, philosophy, law, etc.)
    - Author-specific conceptual expressions
+   - **Important**: Each term MUST have a valid Chinese translation. Use standard/established translations when available. Do NOT use placeholders like "undefined", "null", or "TBD".
 
 2. **Style assessment criteria**:
    - Sentence complexity (concise/complex)

@@ -100,6 +100,7 @@ export function ProofreadPage() {
   // Chapter selection state
   const [showChapterSelection, setShowChapterSelection] = useState(false)
   const [selectedChaptersForProofreading, setSelectedChaptersForProofreading] = useState<Set<string>>(new Set())
+  const [includeNonMain, setIncludeNonMain] = useState(false) // Include non-main content
 
   // Current translation editing state
   const [editingCurrentTranslation, setEditingCurrentTranslation] = useState<string | null>(null)
@@ -207,12 +208,13 @@ export function ProofreadPage() {
 
   // Start proofreading mutation
   const startMutation = useMutation({
-    mutationFn: async (params?: { customSystemPrompt?: string; customUserPrompt?: string; chapterIds?: string[] }) => {
+    mutationFn: async (params?: { customSystemPrompt?: string; customUserPrompt?: string; chapterIds?: string[]; includeNonMain?: boolean }) => {
       return api.startProofreading(projectId!, {
         config_id: configId || undefined,
         custom_system_prompt: params?.customSystemPrompt,
         custom_user_prompt: params?.customUserPrompt,
         chapter_ids: params?.chapterIds,
+        include_non_main: params?.includeNonMain,
       })
     },
     onSuccess: (session) => {
@@ -241,6 +243,7 @@ export function ProofreadPage() {
       customSystemPrompt: systemPrompt,
       customUserPrompt: userPrompt,
       chapterIds,
+      includeNonMain,
     })
   }
 
@@ -1222,6 +1225,26 @@ export function ProofreadPage() {
                   </div>
                 )}
               </div>
+            </div>
+
+            {/* Content Filter Option */}
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={includeNonMain}
+                  onChange={(e) => setIncludeNonMain(e.target.checked)}
+                  className="rounded border-gray-300 dark:border-gray-600 text-amber-600 focus:ring-amber-500"
+                />
+                <div className="flex-1">
+                  <span className={`text-gray-900 dark:text-gray-100 ${fontClasses.paragraph}`}>
+                    {t('proofreading.includeNonMain')}
+                  </span>
+                  <p className={`text-gray-500 dark:text-gray-400 ${fontClasses.xs}`}>
+                    {t('proofreading.includeNonMainHint')}
+                  </p>
+                </div>
+              </label>
             </div>
 
             {/* Footer */}

@@ -4,10 +4,11 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, JSON
+from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, JSON, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.database.base import Base
+from app.models.database.enums import ChapterType
 
 if TYPE_CHECKING:
     from app.models.database.project import Project
@@ -40,6 +41,12 @@ class Chapter(Base):
 
     # Images in this chapter (list of image metadata dicts)
     images: Mapped[Optional[list]] = mapped_column(JSON, default=list)
+
+    # Content classification (for proofreading filtering)
+    chapter_type: Mapped[str] = mapped_column(
+        String(20), default=ChapterType.MAIN_CONTENT.value
+    )
+    is_proofreadable: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

@@ -1,5 +1,6 @@
 {
   "common": {
+    "back": "Back",
     "loading": "Loading...",
     "save": "Save",
     "cancel": "Cancel",
@@ -23,7 +24,8 @@
     "deselectAll": "Deselect All",
     "continue": "Continue",
     "apply": "Apply",
-    "dismiss": "Dismiss"
+    "dismiss": "Dismiss",
+    "complete": "Complete"
   },
   "app": {
     "title": "ePub Translator"
@@ -276,6 +278,9 @@
     "summary": "Summary",
     "noData": "No data",
     "terms": "terms",
+    "streaming": "Streaming...",
+    "characters": "characters",
+    "extractingFields": "Extracting analysis fields...",
     "progress": {
       "loading": "Loading project",
       "sampling": "Sampling paragraphs",
@@ -333,6 +338,8 @@
     "selectChaptersHint": "Choose which chapters to proofread (leave empty to proofread all)",
     "allChaptersSelected": "All chapters will be proofread",
     "chaptersSelected": "{{count}} chapter(s) selected",
+    "includeNonMain": "Include non-main content",
+    "includeNonMainHint": "Include image captions, copyright notices, and other non-main text",
     "cancel": "Cancel",
     "startFailed": "Proofreading Failed",
     "loadingSuggestions": "Loading suggestions...",
@@ -369,8 +376,11 @@
     "exportType": "Export Type",
     "exportTypeEpub": "ePub Ebook",
     "exportTypeEpubDesc": "For e-readers",
+    "exportTypePdf": "PDF Document",
+    "exportTypePdfDesc": "For printing or archiving",
     "exportTypeHtml": "HTML Webpage",
     "exportTypeHtmlDesc": "For browser reading or printing",
+    "paperSize": "Paper Size",
     "format": "Export Format",
     "formatBilingual": "Bilingual (EN + CN)",
     "formatBilingualDesc": "One English paragraph followed by one Chinese paragraph",

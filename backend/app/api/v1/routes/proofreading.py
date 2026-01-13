@@ -19,6 +19,7 @@ class StartProofreadingRequest(LLMTaskRequest):
     """Request to start a proofreading session."""
 
     chapter_ids: Optional[list[str]] = None
+    include_non_main: bool = False  # Include non-main content (images, publishing, etc.)
 
 
 class ProofreadingSessionResponse(BaseModel):
@@ -87,6 +88,7 @@ async def run_proofreading_background(
     api_key: str,
     config_id: Optional[str],
     chapter_ids: Optional[list[str]],
+    include_non_main: bool = False,
     custom_system_prompt: Optional[str] = None,
     custom_user_prompt: Optional[str] = None,
     temperature: Optional[float] = None,
@@ -102,6 +104,7 @@ async def run_proofreading_background(
             model=model,
             api_key=api_key,
             chapter_ids=chapter_ids,
+            include_non_main=include_non_main,
             custom_system_prompt=custom_system_prompt,
             custom_user_prompt=custom_user_prompt,
             temperature=temperature,
@@ -144,21 +147,23 @@ async def start_proofreading(
             provider=llm_config.provider,
             model=llm_config.model,
             chapter_ids=request.chapter_ids,
+            include_non_main=request.include_non_main,
         )
 
         # Run proofreading in background
         background_tasks.add_task(
             run_proofreading_background,
-            session.id,
-            llm_config.provider,
-            llm_config.model,
-            llm_config.api_key,
-            llm_config.config_id,
-            request.chapter_ids,
-            request.custom_system_prompt,
-            request.custom_user_prompt,
-            llm_config.temperature,
-            llm_config.base_url,
+            session_id=session.id,
+            provider=llm_config.provider,
+            model=llm_config.model,
+            api_key=llm_config.api_key,
+            config_id=llm_config.config_id,
+            chapter_ids=request.chapter_ids,
+            include_non_main=request.include_non_main,
+            custom_system_prompt=request.custom_system_prompt,
+            custom_user_prompt=request.custom_user_prompt,
+            temperature=llm_config.temperature,
+            base_url=llm_config.base_url,
         )
 
         return ProofreadingSessionResponse(

@@ -8,6 +8,7 @@ import { useSettingsStore } from '../../stores/settingsStore'
 import { PromptPreviewModal } from '../../components/common/PromptPreviewModal'
 import { LLMConfigSelector } from '../../components/common/LLMConfigSelector'
 import { AnalysisFieldCard } from '../../components/workflow/AnalysisFieldCard'
+import { AnalysisStreamingPreview } from '../../components/workflow/AnalysisStreamingPreview'
 
 interface OutletContext {
   project: Project
@@ -208,7 +209,7 @@ export function AnalysisPage() {
         confirm,
       })
       queryClient.invalidateQueries({ queryKey: ['analysis', projectId] })
-      queryClient.invalidateQueries({ queryKey: ['workflow-status', projectId] })
+      queryClient.invalidateQueries({ queryKey: ['workflowStatus', projectId] })
     } finally {
       setIsSaving(false)
     }
@@ -230,8 +231,16 @@ export function AnalysisPage() {
     })
   }
 
-  const handleConfirm = () => {
-    handleUpdateAnalysis(true)
+  const handleConfirm = async () => {
+    try {
+      await handleUpdateAnalysis(true)
+      // Refetch workflow status to ensure ProjectLayout has updated data
+      await refetchWorkflow()
+      // Navigate immediately after successful confirmation
+      navigate(`/project/${projectId}/translate`)
+    } catch (error) {
+      console.error('Failed to confirm analysis:', error)
+    }
   }
 
   const handleContinue = () => {
@@ -359,21 +368,18 @@ export function AnalysisPage() {
             </div>
           </div>
 
-          {/* Status message */}
-          <p className="text-sm text-gray-600 dark:text-gray-400">
-            {progressEvent.message}
-          </p>
-
-          {/* Partial content preview during analysis */}
-          {progressEvent.step === 'analyzing' && progressEvent.partial_content && (
-            <div className="mt-4">
-              <p className="text-xs text-gray-500 dark:text-gray-500 mb-1">
-                {t('analysis.preview')}:
-              </p>
-              <pre className="bg-gray-100 dark:bg-gray-900 rounded p-3 text-xs text-gray-700 dark:text-gray-300 overflow-x-auto max-h-32 overflow-y-auto">
-                {progressEvent.partial_content}
-              </pre>
-            </div>
+          {/* Streaming preview during analysis - improved UI */}
+          {progressEvent.step === 'analyzing' && progressEvent.partial_content ? (
+            <AnalysisStreamingPreview
+              partialContent={progressEvent.partial_content}
+              progress={progressEvent.progress}
+              message={progressEvent.message}
+            />
+          ) : (
+            /* Status message for non-analyzing steps */
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {progressEvent.message}
+            </p>
           )}
         </div>
       )}

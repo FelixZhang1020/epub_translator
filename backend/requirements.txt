@@ -14,6 +14,9 @@ ebooklib>=0.18
 beautifulsoup4>=4.12.0
 lxml>=5.0.0
 
+# PDF export (optional - requires system deps: cairo, pango)
+weasyprint>=62.0
+
 # LLM providers (unified via LiteLLM)
 litellm>=1.30.0
 openai>=1.12.0

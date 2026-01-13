@@ -23,6 +23,7 @@ from app.models.database.proofreading import (
     ImprovementLevel,
 )
 from app.core.prompts.loader import PromptLoader
+from app.core.prompts.variables import VariableService
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +39,7 @@ class ProofreadingService:
         provider: str,
         model: str,
         chapter_ids: Optional[list[str]] = None,
+        include_non_main: bool = False,
     ) -> ProofreadingSession:
         """Start a new proofreading session.
 
@@ -47,6 +49,7 @@ class ProofreadingService:
             provider: LLM provider
             model: LLM model to use
             chapter_ids: Optional list of chapter IDs to proofread
+            include_non_main: If True, include non-main content (images, publishing, etc.)
 
         Returns:
             ProofreadingSession
@@ -68,21 +71,24 @@ class ProofreadingService:
         new_round = max_round + 1
 
         # Count paragraphs with translations (only these will be proofread)
+        # Build base query
+        count_query = (
+            select(func.count(func.distinct(Paragraph.id)))
+            .select_from(Paragraph)
+            .join(Chapter)
+            .join(Translation, Translation.paragraph_id == Paragraph.id)
+            .where(Chapter.project_id == project_id)
+        )
+
+        # Filter by chapter IDs if provided
         if chapter_ids:
-            result = await db.execute(
-                select(func.count(func.distinct(Paragraph.id)))
-                .select_from(Paragraph)
-                .join(Translation, Translation.paragraph_id == Paragraph.id)
-                .where(Paragraph.chapter_id.in_(chapter_ids))
-            )
-        else:
-            result = await db.execute(
-                select(func.count(func.distinct(Paragraph.id)))
-                .select_from(Paragraph)
-                .join(Chapter)
-                .join(Translation, Translation.paragraph_id == Paragraph.id)
-                .where(Chapter.project_id == project_id)
-            )
+            count_query = count_query.where(Paragraph.chapter_id.in_(chapter_ids))
+
+        # Filter by proofreadable content (default behavior)
+        if not include_non_main:
+            count_query = count_query.where(Paragraph.is_proofreadable == True)
+
+        result = await db.execute(count_query)
         total_paragraphs = result.scalar() or 0
 
         # Create session
@@ -109,6 +115,7 @@ class ProofreadingService:
         model: str,
         api_key: str,
         chapter_ids: Optional[list[str]] = None,
+        include_non_main: bool = False,
         custom_system_prompt: Optional[str] = None,
         custom_user_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
@@ -123,6 +130,7 @@ class ProofreadingService:
             model: LLM model
             api_key: API key for the provider
             chapter_ids: Optional list of chapter IDs to proofread
+            include_non_main: If True, include non-main content (images, publishing, etc.)
             custom_system_prompt: Optional custom system prompt
             custom_user_prompt: Optional custom user prompt template
             temperature: LLM temperature override
@@ -142,30 +150,8 @@ class ProofreadingService:
             session.started_at = datetime.utcnow()
             await db.commit()
 
-            # Get project for variables
-            result = await db.execute(
-                select(Project).where(Project.id == session.project_id)
-            )
-            project = result.scalar_one_or_none()
-
-            # Get book analysis for context
-            result = await db.execute(
-                select(BookAnalysis).where(BookAnalysis.project_id == session.project_id)
-            )
-            analysis = result.scalar_one_or_none()
-            # Extract style info from raw_analysis (dynamic JSON structure)
-            raw = analysis.raw_analysis if analysis and analysis.raw_analysis else {}
-            writing_style = raw.get("writing_style") or raw.get("style_and_register", {}).get("register") or ""
-            tone = raw.get("tone") or raw.get("style_and_register", {}).get("overall_tone") or ""
-
-            # Extract terminology table
-            key_terminology = raw.get("key_terminology", [])
-            terminology_text = ""
-            if key_terminology:
-                terminology_text = "\n".join(
-                    f"- {term.get('english_term', '')}: {term.get('chinese_translation', '')}"
-                    for term in key_terminology
-                )
+            # Note: We use VariableService.build_context() inside the loop
+            # to get full context with source/target text for each paragraph
 
             # Get paragraphs to proofread (with translations)
             query = (
@@ -176,6 +162,10 @@ class ProofreadingService:
             )
             if chapter_ids:
                 query = query.where(Paragraph.chapter_id.in_(chapter_ids))
+
+            # Filter by proofreadable content (default behavior)
+            if not include_non_main:
+                query = query.where(Paragraph.is_proofreadable == True)
 
             result = await db.execute(query)
             paragraphs = result.scalars().all()
@@ -211,29 +201,22 @@ class ProofreadingService:
                     skipped_no_translation += 1
                     continue
 
-                # Build prompts using PromptLoader
+                # Build prompts using PromptLoader with VariableService for consistency
                 template = PromptLoader.load_template("proofreading")
-                # Use flat dictionary structure with namespaced keys
-                variables = {
-                    # Content (required)
-                    "content.source": para.original_text,
-                    "content.target": latest_translation.translated_text,
-                    # Project info
-                    "project.title": project.epub_title or project.name if project else "",
-                    "project.author": project.epub_author if project else "",
-                    "project.author_background": project.author_background if project else "",
-                    # Derived from analysis
-                    "derived.writing_style": writing_style,
-                    "derived.tone": tone,
-                    "derived.terminology_table": terminology_text,
-                    "derived.author_name": raw.get("author_name", ""),
-                    "derived.author_biography": raw.get("author_biography", ""),
-                    # Boolean flags for conditional rendering
-                    "derived.has_analysis": analysis is not None,
-                    "derived.has_writing_style": bool(writing_style),
-                    "derived.has_tone": bool(tone),
-                    "derived.has_terminology": bool(terminology_text),
-                }
+
+                # Use VariableService.build_context() for consistent variable handling
+                # This provides all derived variables, user variables, and proper formatting
+                var_context = await VariableService.build_context(
+                    db=db,
+                    project_id=session.project_id,
+                    stage="proofreading",
+                    source_text=para.original_text,
+                    target_text=latest_translation.translated_text,
+                    paragraph_index=para.order_index,
+                    chapter_index=None,  # Could be fetched if needed
+                    chapter_title=None,  # Could be fetched if needed
+                )
+                variables = var_context.to_flat_dict()
 
                 # Render both system and user prompts with variables
                 # If custom prompts provided, they contain template markers that need substitution

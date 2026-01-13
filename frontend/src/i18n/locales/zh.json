@@ -1,5 +1,6 @@
 {
   "common": {
+    "back": "返回",
     "loading": "加载中...",
     "save": "保存",
     "cancel": "取消",
@@ -23,7 +24,8 @@
     "deselectAll": "取消全选",
     "continue": "继续",
     "apply": "应用",
-    "dismiss": "忽略"
+    "dismiss": "忽略",
+    "complete": "完成"
   },
   "app": {
     "title": "ePub 翻译工具"
@@ -276,6 +278,9 @@
     "summary": "摘要",
     "noData": "暂无数据",
     "terms": "条术语",
+    "streaming": "生成中...",
+    "characters": "字符",
+    "extractingFields": "正在提取分析字段...",
     "progress": {
       "loading": "加载项目",
       "sampling": "采样段落",
@@ -334,6 +339,8 @@
     "selectChaptersHint": "选择要校对的章节（不选择则校对全部）",
     "allChaptersSelected": "将校对所有章节",
     "chaptersSelected": "已选择 {{count}} 个章节",
+    "includeNonMain": "包含非主要内容",
+    "includeNonMainHint": "包含图片说明、版权声明等非主要文本",
     "cancel": "取消",
     "loadingSuggestions": "正在加载建议...",
     "sessionDetails": "会话详情",
@@ -369,8 +376,11 @@
     "exportType": "导出类型",
     "exportTypeEpub": "ePub 电子书",
     "exportTypeEpubDesc": "适用于电子书阅读器",
+    "exportTypePdf": "PDF 文档",
+    "exportTypePdfDesc": "适用于打印或存档",
     "exportTypeHtml": "HTML 网页",
     "exportTypeHtmlDesc": "适用于浏览器阅读或打印",
+    "paperSize": "纸张大小",
     "format": "导出格式",
     "formatBilingual": "双语（英文 + 中文）",
     "formatBilingualDesc": "一段英文后跟一段中文",

@@ -29,6 +29,29 @@ class TaskStatus(str, Enum):
 
 
 # =============================================================================
+# Content Classification Enums
+# =============================================================================
+
+
+class ChapterType(str, Enum):
+    """Chapter content type for classification."""
+
+    FRONT_MATTER = "front_matter"  # Copyright, dedication, preface, TOC
+    MAIN_CONTENT = "main_content"  # Actual book chapters
+    BACK_MATTER = "back_matter"    # Appendix, acknowledgments, about author, index
+
+
+class ContentType(str, Enum):
+    """Paragraph content type for classification."""
+
+    MAIN = "main"                    # Regular text content
+    IMAGE_CAPTION = "image_caption"  # figcaption, image descriptions
+    PUBLISHING = "publishing"        # Copyright, ISBN, legal text
+    NAVIGATION = "navigation"        # TOC entries, page numbers
+    METADATA = "metadata"            # Headers, footers, running titles
+
+
+# =============================================================================
 # Proofreading Enums
 # =============================================================================
 
