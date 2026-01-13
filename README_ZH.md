@@ -1,4 +1,4 @@
-# ePub Translator
+<h1 align="center">📖 ePub Translator</h1>
 
 <div align="center">
   <a href="https://github.com/FelixZhang1020/epub_translator/stargazers"><img src="https://img.shields.io/github/stars/FelixZhang1020/epub_translator?style=flat-square" alt="GitHub Stars"></a>
