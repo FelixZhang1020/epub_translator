@@ -1,0 +1,6 @@
+# Ignore all prompt files except the default templates
+*
+!*/
+!.gitignore
+!**/system.default.md
+!**/user.default.md
