@@ -233,6 +233,7 @@ class DerivedMappingDisplay(TypedDict):
 
 
 DERIVED_MAPPING_DISPLAY: List[DerivedMappingDisplay] = [
+    # Author info (both schemas)
     {
         "source": "author_name",
         "target": "derived.author_name",
@@ -245,6 +246,13 @@ DERIVED_MAPPING_DISPLAY: List[DerivedMappingDisplay] = [
         "transform": "",
         "used_in": ["translation", "optimization", "proofreading"],
     },
+    {
+        "source": "author_background",
+        "target": "derived.author_biography",
+        "transform": "format_author_biography",
+        "used_in": ["translation", "optimization", "proofreading"],
+    },
+    # Work profile (both schemas)
     {
         "source": "writing_style",
         "target": "derived.writing_style",
@@ -261,26 +269,28 @@ DERIVED_MAPPING_DISPLAY: List[DerivedMappingDisplay] = [
         "source": "target_audience",
         "target": "derived.target_audience",
         "transform": "",
-        "used_in": ["translation", "optimization", "proofreading"],
+        "used_in": ["translation"],
     },
     {
         "source": "genre_conventions",
         "target": "derived.genre_conventions",
         "transform": "",
-        "used_in": ["translation", "optimization", "proofreading"],
+        "used_in": ["translation"],
     },
+    # Terminology (both schemas)
     {
         "source": "key_terminology",
         "target": "derived.key_terminology",
         "transform": "",
-        "used_in": ["translation", "proofreading"],
+        "used_in": ["translation", "optimization", "proofreading"],
     },
     {
         "source": "key_terminology",
         "target": "derived.terminology_table",
         "transform": "format_terminology",
-        "used_in": ["translation", "proofreading"],
+        "used_in": ["translation", "optimization", "proofreading"],
     },
+    # Translation principles - default schema names
     {
         "source": "translation_principles.priority_order",
         "target": "derived.priority_order",
@@ -311,10 +321,103 @@ DERIVED_MAPPING_DISPLAY: List[DerivedMappingDisplay] = [
         "transform": "",
         "used_in": ["translation"],
     },
+    # Translation principles - reformed-theology schema alternate names
+    {
+        "source": "translation_principles.must_be_literal",
+        "target": "derived.faithfulness_boundary",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "translation_principles.allowed_adjustment",
+        "target": "derived.permissible_adaptation",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "translation_principles.absolute_red_lines",
+        "target": "derived.red_lines",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    # Custom guidelines (both schemas)
     {
         "source": "custom_guidelines",
         "target": "derived.custom_guidelines",
         "transform": "",
         "used_in": ["translation", "optimization", "proofreading"],
+    },
+    {
+        "source": "custom_watchlist",
+        "target": "derived.custom_guidelines",
+        "transform": "",
+        "used_in": ["translation", "optimization", "proofreading"],
+    },
+    # Reformed-theology specific
+    {
+        "source": "meta.book_title",
+        "target": "derived.book_title",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "meta.assumed_tradition",
+        "target": "derived.assumed_tradition",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "meta.target_chinese_bible_version",
+        "target": "derived.bible_version",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "author_biography.theological_identity",
+        "target": "derived.author_theological_identity",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "author_biography.historical_context",
+        "target": "derived.author_historical_context",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "author_biography.influence_on_translation",
+        "target": "derived.author_influence",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "bible_reference_policy",
+        "target": "derived.bible_reference_policy",
+        "transform": "format_bible_policy",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "syntax_and_logic.sentence_splitting_rules",
+        "target": "derived.sentence_splitting_rules",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "syntax_and_logic.logical_connectors",
+        "target": "derived.logical_connectors",
+        "transform": "",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "notes_policy.allowed",
+        "target": "derived.notes_allowed",
+        "transform": "format_list",
+        "used_in": ["translation"],
+    },
+    {
+        "source": "notes_policy.forbidden",
+        "target": "derived.notes_forbidden",
+        "transform": "format_list",
+        "used_in": ["translation"],
     },
 ]

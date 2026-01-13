@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom'
 import { Plus, BookOpen, Clock, CheckCircle, AlertCircle, Trash2, Star } from 'lucide-react'
 import { api } from '../services/api/client'
 import { useTranslation, useAppStore, fontSizeClasses } from '../stores/appStore'
+import { formatDate } from '../utils/date'
 
 export function HomePage() {
   const { t } = useTranslation()
-  const language = useAppStore((state) => state.language)
   const fontSize = useAppStore((state) => state.fontSize)
   const fontClasses = fontSizeClasses[fontSize]
   const queryClient = useQueryClient()
@@ -135,7 +135,7 @@ export function HomePage() {
                 <span>{project.total_paragraphs} {t('home.paragraphs')}</span>
               </div>
               <p className={`${fontClasses.xs} text-gray-400 dark:text-gray-500 mt-2`}>
-                {new Date(project.created_at).toLocaleDateString(language === 'zh' ? 'zh-CN' : 'en-US')}
+                {formatDate(project.created_at)}
               </p>
             </Link>
           ))}

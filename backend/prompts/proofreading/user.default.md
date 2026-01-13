@@ -1,5 +1,5 @@
-[Source]
+Source:
 {{content.source}}
 
-[Current translation]
+Current translation:
 {{content.target}}

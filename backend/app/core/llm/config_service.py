@@ -174,21 +174,35 @@ class LLMConfigService:
 
     @classmethod
     def _config_to_resolved(cls, config: LLMConfiguration) -> ResolvedLLMConfig:
-        """Convert database config to resolved config."""
+        """Convert database config to resolved config.
+
+        Uses the effective API key (database first, then environment variable).
+        """
         import logging
         logger = logging.getLogger(__name__)
+
+        # Use effective API key (database or environment)
+        effective_api_key = config.get_effective_api_key()
+
+        if not effective_api_key:
+            raise ValueError(
+                f"No API key available for configuration '{config.name}' "
+                f"(provider: {config.provider}). Please set the API key in settings "
+                f"or configure the {cls.ENV_VAR_MAP.get(config.provider, 'provider')} environment variable."
+            )
 
         resolved = ResolvedLLMConfig(
             provider=config.provider,
             model=config.model,
-            api_key=config.api_key,
+            api_key=effective_api_key,
             base_url=config.base_url,
             temperature=config.temperature if config.temperature is not None else 0.7,
             config_id=config.id,
             config_name=config.name,
         )
 
-        logger.info(f"[Config Service] Resolved config: provider={resolved.provider}, model={resolved.model}, base_url={resolved.base_url}, config_name={resolved.config_name}")
+        api_key_source = "database" if config.api_key else "environment"
+        logger.info(f"[Config Service] Resolved config: provider={resolved.provider}, model={resolved.model}, base_url={resolved.base_url}, config_name={resolved.config_name}, api_key_source={api_key_source}")
 
         return resolved
 

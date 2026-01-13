@@ -1,12 +1,12 @@
 {{#if context.previous_source}}
-[Previous source]
+Previous source:
 {{context.previous_source}}
 
-[Previous translation]
+Previous translation:
 {{context.previous_target}}
 
 ---
 
 {{/if}}
-[Paragraph to translate]
+Source to translate:
 {{content.source}}

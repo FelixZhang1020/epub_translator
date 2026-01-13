@@ -36,28 +36,62 @@ StageType = Literal["analysis", "translation", "optimization", "proofreading"]
 # =============================================================================
 # These mappings define how to extract derived variables from analysis results.
 # Format: (source_path, target_key, transform_function_name)
+#
+# Default schema (analysis/system.default.md) uses flat structure:
+# - author_name, author_biography, author_background (top level)
+# - writing_style, tone, target_audience, genre_conventions (top level)
+# - key_terminology (array)
+# - translation_principles.* (nested object)
+# - custom_guidelines (array)
+#
+# Reformed-theology schema uses nested structure with meta.*, work_profile.*, etc.
 DERIVED_MAPPINGS: List[tuple] = [
-    # Direct field mappings
+    # Author info (top level in default schema)
     ("author_name", "author_name", None),
-    ("author_biography", "author_biography", None),
+    ("author_biography", "author_biography", "format_author_biography"),
+
+    # Work profile (top level in default schema)
     ("writing_style", "writing_style", None),
     ("tone", "tone", None),
     ("target_audience", "target_audience", None),
     ("genre_conventions", "genre_conventions", None),
 
-    # Nested field mappings with transforms
+    # Terminology mappings
     ("key_terminology", "key_terminology", None),
     ("key_terminology", "terminology_table", "format_terminology"),
 
-    # Translation principles
+    # Translation principles mappings (nested under translation_principles)
     ("translation_principles.priority_order", "priority_order", None),
     ("translation_principles.faithfulness_boundary", "faithfulness_boundary", None),
     ("translation_principles.permissible_adaptation", "permissible_adaptation", None),
     ("translation_principles.style_constraints", "style_constraints", None),
     ("translation_principles.red_lines", "red_lines", None),
 
-    # Custom guidelines
+    # Custom guidelines (top level)
     ("custom_guidelines", "custom_guidelines", None),
+
+    # === Reformed-theology schema fallbacks (nested structure) ===
+    # These handle the alternate nested JSON format from reformed-theology prompts
+    ("meta.author", "author_name", None),
+    ("meta.book_title", "book_title", None),
+    ("meta.assumed_tradition", "assumed_tradition", None),
+    ("meta.target_chinese_bible_version", "bible_version", None),
+    ("author_biography.theological_identity", "author_theological_identity", None),
+    ("author_biography.historical_context", "author_historical_context", None),
+    ("author_biography.influence_on_translation", "author_influence", None),
+    ("work_profile.writing_style", "writing_style", None),
+    ("work_profile.tone", "tone", None),
+    ("work_profile.target_audience", "target_audience", None),
+    ("work_profile.genre", "genre_conventions", None),
+    ("translation_principles.must_be_literal", "faithfulness_boundary", None),
+    ("translation_principles.allowed_adjustment", "permissible_adaptation", None),
+    ("translation_principles.absolute_red_lines", "red_lines", None),
+    ("bible_reference_policy", "bible_reference_policy", "format_bible_policy"),
+    ("syntax_and_logic.sentence_splitting_rules", "sentence_splitting_rules", None),
+    ("syntax_and_logic.logical_connectors", "logical_connectors", None),
+    ("notes_policy.allowed", "notes_allowed", "format_list"),
+    ("notes_policy.forbidden", "notes_forbidden", "format_list"),
+    ("custom_watchlist", "custom_guidelines", None),
 ]
 
 
@@ -385,20 +419,40 @@ class VariableService:
         """
         # Default scaffold so templates always have defined keys
         derived: Dict[str, Any] = {
+            # Meta section
             "author_name": "",
+            "book_title": "",
+            "assumed_tradition": "",
+            "bible_version": "",
+            # Author biography
             "author_biography": "",
+            "author_theological_identity": "",
+            "author_historical_context": "",
+            "author_influence": "",
+            # Work profile
             "writing_style": "",
             "tone": "",
             "target_audience": "",
             "genre_conventions": "",
+            # Terminology
             "key_terminology": {},
-            "translation_principles": {},
             "terminology_table": "",
+            # Translation principles
+            "translation_principles": {},
             "priority_order": [],
             "faithfulness_boundary": "",
             "permissible_adaptation": "",
             "style_constraints": "",
             "red_lines": "",
+            # Bible reference policy
+            "bible_reference_policy": "",
+            # Syntax and logic
+            "sentence_splitting_rules": "",
+            "logical_connectors": "",
+            # Notes policy
+            "notes_allowed": "",
+            "notes_forbidden": "",
+            # Custom guidelines
             "custom_guidelines": [],
         }
 
@@ -410,6 +464,12 @@ class VariableService:
                     value = cls._apply_transform(value, transform)
                 derived[target_key] = value
 
+        # Fallback: accept author_background when author_biography is empty
+        if not derived.get("author_biography"):
+            background = raw_analysis.get("author_background")
+            if background:
+                derived["author_biography"] = cls._format_author_biography(background)
+
         # Add has_* flags for conditional blocks (auto-generate from derived)
         derived["has_analysis"] = bool(raw_analysis)
         derived["has_writing_style"] = bool(derived.get("writing_style"))
@@ -420,6 +480,8 @@ class VariableService:
         derived["has_translation_principles"] = bool(derived.get("priority_order"))
         derived["has_custom_guidelines"] = bool(derived.get("custom_guidelines"))
         derived["has_style_constraints"] = bool(derived.get("style_constraints"))
+        derived["has_author_biography"] = bool(derived.get("author_biography"))
+        derived["has_bible_policy"] = bool(derived.get("bible_reference_policy"))
 
         return derived
 
@@ -451,6 +513,8 @@ class VariableService:
         - format_terminology: Convert terminology dict/list to markdown list
         - format_list: Convert list to bullet points
         - join_comma: Join list with commas
+        - format_author_biography: Convert author_biography object to string
+        - format_bible_policy: Convert bible_reference_policy object to string
 
         Args:
             value: Value to transform
@@ -469,7 +533,23 @@ class VariableService:
             if isinstance(value, list):
                 return ", ".join(str(v) for v in value)
             return str(value)
+        elif transform == "format_author_biography":
+            return cls._format_author_biography(value)
+        elif transform == "format_bible_policy":
+            return cls._format_bible_policy(value)
         return value
+
+    # Placeholder values to filter out from terminology
+    INVALID_PLACEHOLDERS = {"undefined", "null", "n/a", "none", "tbd", ""}
+
+    @classmethod
+    def _is_valid_translation(cls, value: Any) -> bool:
+        """Check if a translation value is valid (not a placeholder)."""
+        if value is None:
+            return False
+        if not isinstance(value, str):
+            return bool(value)
+        return value.strip().lower() not in cls.INVALID_PLACEHOLDERS
 
     @classmethod
     def _format_terminology(cls, terms: Any) -> str:
@@ -482,23 +562,122 @@ class VariableService:
             Markdown formatted string
         """
         if isinstance(terms, dict):
-            return "\n".join(f"- {en}: {zh}" for en, zh in terms.items())
+            # Filter out invalid translations for dict format
+            lines = []
+            for en, zh in terms.items():
+                if en and cls._is_valid_translation(zh):
+                    lines.append(f"- **{en}**: {zh}")
+            return "\n".join(lines)
         elif isinstance(terms, list):
             lines = []
             for term in terms:
                 if isinstance(term, dict):
-                    en = term.get("english_term") or term.get("english", "")
-                    zh = term.get("chinese_translation") or term.get("chinese", "")
-                    notes = term.get("notes", "")
-                    if en and zh:
-                        line = f"- {en}: {zh}"
-                        if notes:
-                            line += f" ({notes})"
+                    # Support multiple field name formats
+                    en = (
+                        term.get("english_term")
+                        or term.get("english")
+                        or term.get("term")
+                        or ""
+                    )
+                    zh = (
+                        term.get("recommended_chinese")
+                        or term.get("chinese_translation")
+                        or term.get("chinese")
+                        or ""
+                    )
+                    usage = term.get("usage_rule") or term.get("notes") or ""
+                    fallbacks = term.get("fallback_options", [])
+
+                    if en and cls._is_valid_translation(zh):
+                        line = f"- **{en}**: {zh}"
+                        if fallbacks:
+                            fallback_str = ", ".join(fallbacks[:2])
+                            line += f" (alt: {fallback_str})"
+                        if usage:
+                            # Truncate long usage rules
+                            usage_short = (
+                                usage[:100] + "..."
+                                if len(usage) > 100
+                                else usage
+                            )
+                            line += f"\n  - Usage: {usage_short}"
                         lines.append(line)
                 else:
                     lines.append(f"- {term}")
             return "\n".join(lines)
         return str(terms)
+
+    @classmethod
+    def _format_author_biography(cls, bio: Any) -> str:
+        """Format author_biography object as readable string.
+
+        Args:
+            bio: Author biography dict with sub-fields
+
+        Returns:
+            Formatted string
+        """
+        if isinstance(bio, str):
+            return bio
+        if not isinstance(bio, dict):
+            return str(bio) if bio else ""
+
+        parts = []
+        if bio.get("theological_identity"):
+            parts.append(f"**Theological Identity**: {bio['theological_identity']}")
+        if bio.get("historical_context"):
+            parts.append(f"**Historical Context**: {bio['historical_context']}")
+        if bio.get("influence_on_translation"):
+            parts.append(
+                f"**Translation Implications**: {bio['influence_on_translation']}"
+            )
+
+        return "\n\n".join(parts) if parts else ""
+
+    @classmethod
+    def _format_bible_policy(cls, policy: Any) -> str:
+        """Format bible_reference_policy object as readable string.
+
+        Args:
+            policy: Bible reference policy dict
+
+        Returns:
+            Formatted string
+        """
+        if isinstance(policy, str):
+            return policy
+        if not isinstance(policy, dict):
+            return str(policy) if policy else ""
+
+        parts = []
+
+        # Detection rules
+        detection = policy.get("detection", {})
+        if detection:
+            parts.append("**Detection Rules**:")
+            if detection.get("explicit_markers"):
+                markers = ", ".join(detection["explicit_markers"][:3])
+                parts.append(f"- Explicit markers: {markers}")
+            if detection.get("implicit_signals"):
+                signals = ", ".join(detection["implicit_signals"][:3])
+                parts.append(f"- Implicit signals: {signals}")
+
+        # Rendering rules
+        rendering = policy.get("rendering", {})
+        if rendering:
+            parts.append("\n**Rendering Rules**:")
+            if rendering.get("in_text"):
+                parts.append(f"- In text: {rendering['in_text']}")
+            if rendering.get("citation_format"):
+                parts.append(f"- Citation format: {rendering['citation_format']}")
+
+        # Obligation
+        obligation = policy.get("obligation", {})
+        if obligation:
+            if obligation.get("burden_of_action"):
+                parts.append(f"\n**Obligation**: {obligation['burden_of_action']}")
+
+        return "\n".join(parts) if parts else ""
 
     @classmethod
     def _parse_variable_value(cls, value: str, value_type: str) -> Any:
@@ -582,7 +761,7 @@ class VariableService:
         project_var_info = [
             ("title", "Book title from EPUB metadata"),
             ("author", "Author name from EPUB metadata"),
-            ("author_background", "Custom author background info"),
+            ("author_background", "Author background from analysis"),
             ("name", "Project name"),
             ("source_language", "Source language code"),
             ("target_language", "Target language code"),
@@ -606,7 +785,6 @@ class VariableService:
             ("original_text", "Original text (legacy alias)", ["proofreading"]),
             ("translated_text", "Translated text (legacy alias)", ["optimization", "proofreading"]),
             ("chapter_title", "Current chapter title", ["translation", "optimization", "proofreading"]),
-            ("sample_paragraphs", "Sample paragraphs for analysis", ["analysis"]),
         ]
         for name, desc, stages in content_vars:
             if stage is None or stage in stages:
@@ -664,27 +842,34 @@ class VariableService:
                 })
 
         # Derived variables (from analysis)
+        # Format: (key, description, stages)
         derived_var_info = [
-            ("writing_style", "Writing style from analysis"),
-            ("tone", "Tone from analysis"),
-            ("target_audience", "Target audience"),
-            ("genre_conventions", "Genre conventions"),
-            ("terminology_table", "Formatted terminology list"),
-            ("priority_order", "Translation priority order"),
-            ("faithfulness_boundary", "Strict faithfulness requirements"),
-            ("permissible_adaptation", "Allowed adaptations"),
-            ("style_constraints", "Style constraints"),
-            ("red_lines", "Prohibited actions"),
-            ("custom_guidelines", "Custom translation guidelines"),
+            ("author_biography", "Author background from analysis", ["translation", "optimization", "proofreading"]),
+            ("writing_style", "Writing style from analysis", ["translation", "optimization", "proofreading"]),
+            ("tone", "Tone from analysis", ["translation", "optimization", "proofreading"]),
+            ("target_audience", "Target audience", ["translation"]),
+            ("genre_conventions", "Genre conventions", ["translation"]),
+            ("terminology_table", "Formatted terminology list", ["translation", "optimization", "proofreading"]),
+            ("priority_order", "Translation priority order", ["translation"]),
+            ("faithfulness_boundary", "Strict faithfulness requirements", ["translation"]),
+            ("permissible_adaptation", "Allowed adaptations", ["translation"]),
+            ("style_constraints", "Style constraints", ["translation"]),
+            ("red_lines", "Prohibited actions", ["translation"]),
+            ("custom_guidelines", "Custom translation guidelines", ["translation", "optimization", "proofreading"]),
             # Boolean flags
-            ("has_analysis", "Whether analysis exists"),
-            ("has_writing_style", "Whether writing style is defined"),
-            ("has_tone", "Whether tone is defined"),
-            ("has_terminology", "Whether terminology is defined"),
-            ("has_custom_guidelines", "Whether custom guidelines exist"),
-            ("has_style_constraints", "Whether style constraints exist"),
+            ("has_analysis", "Whether analysis exists", ["translation", "optimization", "proofreading"]),
+            ("has_author_biography", "Whether author background is defined", ["translation", "optimization", "proofreading"]),
+            ("has_writing_style", "Whether writing style is defined", ["translation", "optimization", "proofreading"]),
+            ("has_tone", "Whether tone is defined", ["translation", "optimization", "proofreading"]),
+            ("has_terminology", "Whether terminology is defined", ["translation", "optimization", "proofreading"]),
+            ("has_target_audience", "Whether target audience is defined", ["translation", "optimization", "proofreading"]),
+            ("has_genre_conventions", "Whether genre conventions are defined", ["translation", "optimization", "proofreading"]),
+            ("has_translation_principles", "Whether translation principles are defined", ["translation"]),
+            ("has_custom_guidelines", "Whether custom guidelines exist", ["translation"]),
+            ("has_style_constraints", "Whether style constraints exist", ["translation"]),
+            ("has_bible_policy", "Whether Bible reference policy is defined", ["translation"]),
         ]
-        for key, desc in derived_var_info:
+        for key, desc, stages in derived_var_info:
             value = context.derived.get(key)
             result["derived"].append({
                 "name": f"derived.{key}",
@@ -693,7 +878,7 @@ class VariableService:
                 "type": "boolean" if key.startswith("has_") else (
                     "object" if isinstance(value, (dict, list)) else "string"
                 ),
-                "stages": ["translation", "optimization", "proofreading"],
+                "stages": stages,
             })
 
         # User variables

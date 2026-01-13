@@ -36,6 +36,12 @@ class HtmlWidth(str, Enum):
     FULL = "full"          # 100% - full width
 
 
+class PaperSize(str, Enum):
+    """PDF paper size options."""
+    A4 = "A4"
+    LETTER = "Letter"
+
+
 class ExportRequest(BaseModel):
     """Export request parameters."""
     format: ExportFormat = ExportFormat.BILINGUAL
@@ -310,6 +316,206 @@ async def export_html(
         return FileResponse(
             path=output_path,
             filename=f"{project.name}_bilingual.html",
+            media_type="text/html",
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Text-Only Exports (Copyright Compliant)
+# =============================================================================
+
+
+@router.post("/export/{project_id}/text-epub")
+async def export_text_only_epub(
+    project: ValidatedProject,
+    format: ExportFormat = Query(default=ExportFormat.BILINGUAL),
+    chapter_ids: Optional[List[str]] = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export project as text-only ePub (no images, minimal formatting).
+
+    This endpoint generates a copyright-compliant ePub with text content only.
+    All images and complex formatting are stripped.
+
+    Args:
+        project_id: Project ID
+        format: Export format (bilingual or translated)
+        chapter_ids: Optional list of chapter IDs to export
+
+    Returns:
+        ePub file download
+    """
+    from app.core.export import TextContentExtractor, TextOnlyEpubGenerator
+
+    try:
+        # Extract text content
+        extractor = TextContentExtractor()
+        content = await extractor.extract(
+            db=db,
+            project_id=project.id,
+            chapter_ids=chapter_ids,
+            include_untranslated=(format == ExportFormat.BILINGUAL),
+        )
+
+        if not content.chapters:
+            raise HTTPException(
+                status_code=400,
+                detail="No content found for export."
+            )
+
+        # Generate ePub
+        generator = TextOnlyEpubGenerator()
+        epub_bytes = generator.generate(
+            content=content,
+            mode=format.value,
+        )
+
+        # Save to file for download
+        exports_dir = ProjectStorage.get_exports_dir(project.id)
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "bilingual" if format == ExportFormat.BILINGUAL else "translated"
+        output_path = exports_dir / f"{project.name}_text_{suffix}.epub"
+        output_path.write_bytes(epub_bytes)
+
+        return FileResponse(
+            path=output_path,
+            filename=f"{project.name}_text_{suffix}.epub",
+            media_type="application/epub+zip",
+        )
+
+    except ImportError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/export/{project_id}/pdf")
+async def export_pdf(
+    project: ValidatedProject,
+    format: ExportFormat = Query(default=ExportFormat.BILINGUAL),
+    paper_size: PaperSize = Query(default=PaperSize.A4),
+    chapter_ids: Optional[List[str]] = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export project as PDF (text and TOC only).
+
+    This endpoint generates a copyright-compliant PDF with text content only.
+    Requires WeasyPrint to be installed.
+
+    Args:
+        project_id: Project ID
+        format: Export format (bilingual or translated)
+        paper_size: Paper size (A4 or Letter)
+        chapter_ids: Optional list of chapter IDs to export
+
+    Returns:
+        PDF file download
+    """
+    from app.core.export import TextContentExtractor, PdfGenerator
+
+    try:
+        # Extract text content
+        extractor = TextContentExtractor()
+        content = await extractor.extract(
+            db=db,
+            project_id=project.id,
+            chapter_ids=chapter_ids,
+            include_untranslated=(format == ExportFormat.BILINGUAL),
+        )
+
+        if not content.chapters:
+            raise HTTPException(
+                status_code=400,
+                detail="No content found for export."
+            )
+
+        # Generate PDF
+        generator = PdfGenerator()
+        pdf_bytes = generator.generate(
+            content=content,
+            mode=format.value,
+            paper_size=paper_size.value,
+        )
+
+        # Save to file for download
+        exports_dir = ProjectStorage.get_exports_dir(project.id)
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "bilingual" if format == ExportFormat.BILINGUAL else "translated"
+        output_path = exports_dir / f"{project.name}_{suffix}.pdf"
+        output_path.write_bytes(pdf_bytes)
+
+        return FileResponse(
+            path=output_path,
+            filename=f"{project.name}_{suffix}.pdf",
+            media_type="application/pdf",
+        )
+
+    except ImportError as e:
+        raise HTTPException(
+            status_code=501,
+            detail=f"PDF export unavailable: {e}. Install WeasyPrint to enable."
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/export/{project_id}/text-html")
+async def export_text_only_html(
+    project: ValidatedProject,
+    format: ExportFormat = Query(default=ExportFormat.BILINGUAL),
+    chapter_ids: Optional[List[str]] = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    """Export project as text-only HTML (no images).
+
+    This endpoint generates a copyright-compliant HTML with text content only.
+
+    Args:
+        project_id: Project ID
+        format: Export format (bilingual or translated)
+        chapter_ids: Optional list of chapter IDs to export
+
+    Returns:
+        HTML file download
+    """
+    from app.core.export import TextContentExtractor, TextOnlyHtmlGenerator
+
+    try:
+        # Extract text content
+        extractor = TextContentExtractor()
+        content = await extractor.extract(
+            db=db,
+            project_id=project.id,
+            chapter_ids=chapter_ids,
+            include_untranslated=(format == ExportFormat.BILINGUAL),
+        )
+
+        if not content.chapters:
+            raise HTTPException(
+                status_code=400,
+                detail="No content found for export."
+            )
+
+        # Generate HTML
+        generator = TextOnlyHtmlGenerator()
+        html_bytes = generator.generate_bytes(
+            content=content,
+            mode=format.value,
+        )
+
+        # Save to file for download
+        exports_dir = ProjectStorage.get_exports_dir(project.id)
+        exports_dir.mkdir(parents=True, exist_ok=True)
+        suffix = "bilingual" if format == ExportFormat.BILINGUAL else "translated"
+        output_path = exports_dir / f"{project.name}_text_{suffix}.html"
+        output_path.write_bytes(html_bytes)
+
+        return FileResponse(
+            path=output_path,
+            filename=f"{project.name}_text_{suffix}.html",
             media_type="text/html",
         )
 

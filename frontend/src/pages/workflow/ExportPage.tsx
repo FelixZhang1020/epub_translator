@@ -39,9 +39,10 @@ interface WorkflowContext {
   refetchWorkflow: () => void
 }
 
-type ExportType = 'epub' | 'html'
+type ExportType = 'epub' | 'pdf' | 'html'
 type ExportFormat = 'bilingual' | 'translated'
 type HtmlWidth = 'narrow' | 'medium' | 'wide' | 'full'
+type PaperSize = 'A4' | 'Letter'
 
 export function ExportPage() {
   const { t } = useTranslation()
@@ -61,6 +62,7 @@ export function ExportPage() {
   const [exportType, setExportType] = useState<ExportType>('epub')
   const [exportFormat, setExportFormat] = useState<ExportFormat>('bilingual')
   const [htmlWidth, setHtmlWidth] = useState<HtmlWidth>('medium')
+  const [paperSize, setPaperSize] = useState<PaperSize>('A4')
   const [selectedChaptersForExport, setSelectedChaptersForExport] = useState<Set<string>>(new Set())
   const [expandAllChapters, setExpandAllChapters] = useState(false)
 
@@ -207,17 +209,29 @@ export function ExportPage() {
 
       let blob: Blob
       let filename: string
+      const suffix = exportFormat === 'translated' ? 'translated' : 'bilingual'
+      const bookName = context?.project?.name || 'book'
 
       if (exportType === 'html') {
-        blob = await api.exportHtml(projectId!, { chapter_ids: chapterIds, width: htmlWidth })
-        filename = `${context?.project?.name || 'book'}_bilingual.html`
-      } else {
-        blob = await api.exportEpub(projectId!, {
+        blob = await api.exportTextHtml(projectId!, {
           format: exportFormat,
           chapter_ids: chapterIds
         })
-        const suffix = exportFormat === 'translated' ? 'translated' : 'bilingual'
-        filename = `${context?.project?.name || 'book'}_${suffix}.epub`
+        filename = `${bookName}_text_${suffix}.html`
+      } else if (exportType === 'pdf') {
+        blob = await api.exportPdf(projectId!, {
+          format: exportFormat,
+          paper_size: paperSize,
+          chapter_ids: chapterIds
+        })
+        filename = `${bookName}_${suffix}.pdf`
+      } else {
+        // ePub - use text-only export
+        blob = await api.exportTextEpub(projectId!, {
+          format: exportFormat,
+          chapter_ids: chapterIds
+        })
+        filename = `${bookName}_text_${suffix}.epub`
       }
 
       // Create download link
@@ -281,7 +295,7 @@ export function ExportPage() {
 
         {/* Right side: Switches and Download button */}
         <div className="flex items-center gap-4">
-          {/* Export Type Switch: ePub / HTML */}
+          {/* Export Type Switch: ePub / PDF / HTML */}
           <div className="flex items-center gap-2">
             <span className={`text-gray-500 dark:text-gray-400 ${fontClasses.xs}`}>{t('export.exportType')}:</span>
             <div className="flex rounded-lg bg-gray-200 dark:bg-gray-700 p-0.5">
@@ -295,6 +309,15 @@ export function ExportPage() {
                 ePub
               </button>
               <button
+                onClick={() => setExportType('pdf')}
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${exportType === 'pdf'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+              >
+                PDF
+              </button>
+              <button
                 onClick={() => setExportType('html')}
                 className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${exportType === 'html'
                   ? 'bg-blue-600 text-white shadow-sm'
@@ -306,28 +329,53 @@ export function ExportPage() {
             </div>
           </div>
 
-          {/* Export Format Switch: Bilingual / Chinese Only (only for ePub) */}
-          {exportType === 'epub' && (
+          {/* Export Format Switch: Bilingual / Chinese Only (for ePub, PDF, HTML) */}
+          <div className="flex items-center gap-2">
+            <span className={`text-gray-500 dark:text-gray-400 ${fontClasses.xs}`}>{t('export.format')}:</span>
+            <div className="flex rounded-lg bg-gray-200 dark:bg-gray-700 p-0.5">
+              <button
+                onClick={() => setExportFormat('bilingual')}
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${exportFormat === 'bilingual'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+              >
+                {t('export.formatBilingual')}
+              </button>
+              <button
+                onClick={() => setExportFormat('translated')}
+                className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${exportFormat === 'translated'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                  }`}
+              >
+                {t('export.formatChineseOnly')}
+              </button>
+            </div>
+          </div>
+
+          {/* Paper Size Switch (only for PDF) */}
+          {exportType === 'pdf' && (
             <div className="flex items-center gap-2">
-              <span className={`text-gray-500 dark:text-gray-400 ${fontClasses.xs}`}>{t('export.format')}:</span>
+              <span className={`text-gray-500 dark:text-gray-400 ${fontClasses.xs}`}>{t('export.paperSize')}:</span>
               <div className="flex rounded-lg bg-gray-200 dark:bg-gray-700 p-0.5">
                 <button
-                  onClick={() => setExportFormat('bilingual')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${exportFormat === 'bilingual'
+                  onClick={() => setPaperSize('A4')}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${paperSize === 'A4'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                 >
-                  {t('export.formatBilingual')}
+                  A4
                 </button>
                 <button
-                  onClick={() => setExportFormat('translated')}
-                  className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${exportFormat === 'translated'
+                  onClick={() => setPaperSize('Letter')}
+                  className={`px-3 py-1 rounded-md font-medium transition-colors ${fontClasses.xs} ${paperSize === 'Letter'
                     ? 'bg-blue-600 text-white shadow-sm'
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                     }`}
                 >
-                  {t('export.formatChineseOnly')}
+                  Letter
                 </button>
               </div>
             </div>

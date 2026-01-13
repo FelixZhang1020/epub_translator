@@ -339,6 +339,7 @@ export interface StartProofreadingRequest {
   provider?: string
   // Proofreading options
   chapter_ids?: string[]
+  include_non_main?: boolean // Include non-main content (images, publishing, etc.)
   custom_system_prompt?: string
   custom_user_prompt?: string
 }
@@ -718,6 +719,68 @@ export const api = {
     const queryString = params.toString()
     const url = `/export/${projectId}/preview${queryString ? `?${queryString}` : ''}`
     const { data } = await client.get(url)
+    return data
+  },
+
+  // Text-only exports (copyright compliant)
+  async exportTextEpub(projectId: string, options?: {
+    format?: 'bilingual' | 'translated',
+    chapter_ids?: string[]
+  }): Promise<Blob> {
+    const params = new URLSearchParams()
+    if (options?.format) {
+      params.append('format', options.format)
+    }
+    if (options?.chapter_ids && options.chapter_ids.length > 0) {
+      options.chapter_ids.forEach(id => params.append('chapter_ids', id))
+    }
+    const queryString = params.toString()
+    const url = `/export/${projectId}/text-epub${queryString ? `?${queryString}` : ''}`
+    const { data } = await client.post(url, null, {
+      responseType: 'blob',
+    })
+    return data
+  },
+
+  async exportPdf(projectId: string, options?: {
+    format?: 'bilingual' | 'translated',
+    paper_size?: 'A4' | 'Letter',
+    chapter_ids?: string[]
+  }): Promise<Blob> {
+    const params = new URLSearchParams()
+    if (options?.format) {
+      params.append('format', options.format)
+    }
+    if (options?.paper_size) {
+      params.append('paper_size', options.paper_size)
+    }
+    if (options?.chapter_ids && options.chapter_ids.length > 0) {
+      options.chapter_ids.forEach(id => params.append('chapter_ids', id))
+    }
+    const queryString = params.toString()
+    const url = `/export/${projectId}/pdf${queryString ? `?${queryString}` : ''}`
+    const { data } = await client.post(url, null, {
+      responseType: 'blob',
+    })
+    return data
+  },
+
+  async exportTextHtml(projectId: string, options?: {
+    format?: 'bilingual' | 'translated',
+    chapter_ids?: string[]
+  }): Promise<Blob> {
+    const params = new URLSearchParams()
+    if (options?.format) {
+      params.append('format', options.format)
+    }
+    if (options?.chapter_ids && options.chapter_ids.length > 0) {
+      options.chapter_ids.forEach(id => params.append('chapter_ids', id))
+    }
+    const queryString = params.toString()
+    const url = `/export/${projectId}/text-html${queryString ? `?${queryString}` : ''}`
+    const { data } = await client.post(url, null, {
+      responseType: 'blob',
+    })
     return data
   },
 

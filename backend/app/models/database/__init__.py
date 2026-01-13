@@ -26,6 +26,8 @@ from app.models.database.prompt_template import (
 from app.models.database.enums import (
     TranslationMode,
     TaskStatus,
+    ChapterType,
+    ContentType,
     ProofreadingStatus,
     SuggestionStatus,
     ImprovementLevel,
@@ -57,6 +59,8 @@ __all__ = [
     # Enums
     "TranslationMode",
     "TaskStatus",
+    "ChapterType",
+    "ContentType",
     "ProofreadingStatus",
     "SuggestionStatus",
     "ImprovementLevel",

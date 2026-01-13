@@ -8,6 +8,7 @@ from sqlalchemy import String, Text, Integer, DateTime, ForeignKey, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.database.base import Base
+from app.models.database.enums import ContentType
 
 if TYPE_CHECKING:
     from app.models.database.chapter import Chapter
@@ -44,6 +45,12 @@ class Paragraph(Base):
     xpath: Mapped[Optional[str]] = mapped_column(Text)  # XPath for locating in document
     original_html: Mapped[Optional[str]] = mapped_column(Text)  # Raw HTML with tags
     has_formatting: Mapped[bool] = mapped_column(Boolean, default=False)  # Has inline formatting
+
+    # Content classification (for proofreading filtering)
+    content_type: Mapped[str] = mapped_column(
+        String(20), default=ContentType.MAIN.value
+    )
+    is_proofreadable: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(

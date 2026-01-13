@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.database.chapter import Chapter
 from app.models.database.paragraph import Paragraph
+from app.core.content_classifier import ContentClassifier
 
 
 # =============================================================================
@@ -858,8 +859,17 @@ class EPUBParserV2:
     ) -> int:
         """Save extracted chapters and paragraphs to database."""
         total_paragraphs = 0
+        total_chapters = len(chapters)
+        classifier = ContentClassifier()
 
         for chapter_data in chapters:
+            # Classify chapter type
+            chapter_type = classifier.classify_chapter(
+                title=chapter_data["title"],
+                chapter_number=chapter_data["chapter_number"],
+                total_chapters=total_chapters,
+            )
+
             # Create chapter
             chapter = Chapter(
                 project_id=project_id,
@@ -870,12 +880,25 @@ class EPUBParserV2:
                 word_count=chapter_data["word_count"],
                 paragraph_count=len(chapter_data["paragraphs"]),
                 images=chapter_data.get("images", []),
+                chapter_type=chapter_type.value,
+                is_proofreadable=(chapter_type.value == "main_content"),
             )
             db.add(chapter)
             await db.flush()
 
             # Create paragraphs
             for para_data in chapter_data["paragraphs"]:
+                # Classify paragraph content type
+                content_type = classifier.classify_paragraph(
+                    text=para_data["original_text"],
+                    html_tag=para_data["html_tag"],
+                    chapter_type=chapter_type,
+                )
+                is_proofreadable = classifier.is_proofreadable(
+                    content_type=content_type,
+                    chapter_type=chapter_type,
+                )
+
                 paragraph = Paragraph(
                     chapter_id=chapter.id,
                     paragraph_number=para_data["paragraph_number"],
@@ -885,6 +908,8 @@ class EPUBParserV2:
                     xpath=para_data.get("xpath"),
                     original_html=para_data.get("original_html"),
                     has_formatting=para_data.get("has_formatting", False),
+                    content_type=content_type.value,
+                    is_proofreadable=is_proofreadable,
                 )
                 db.add(paragraph)
                 total_paragraphs += 1

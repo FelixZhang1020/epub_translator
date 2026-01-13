@@ -173,6 +173,10 @@ class BookAnalysisService:
             )
             db.add(analysis)
 
+        # Also save author_background to Project model if present
+        if analysis_data.get("author_background"):
+            project.author_background = analysis_data["author_background"]
+
         await db.commit()
         await db.refresh(analysis)
         return analysis
@@ -453,6 +457,10 @@ class BookAnalysisService:
                 model=llm_config.model,
             )
             db.add(analysis)
+
+        # Also save author_background to Project model if present
+        if analysis_data.get("author_background"):
+            project.author_background = analysis_data["author_background"]
 
         await db.commit()
         await db.refresh(analysis)

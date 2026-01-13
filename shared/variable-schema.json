@@ -107,7 +107,17 @@
       "stages": ["translation", "optimization"],
       "example": "zh-CN"
     },
-
+    {
+      "name": "name",
+      "fullName": "project.name",
+      "category": "project",
+      "type": "string",
+      "description": "Project name (may differ from book title)",
+      "descriptionZh": "项目名称（可能与书名不同）",
+      "source": "project.name",
+      "stages": ["analysis", "translation", "optimization", "proofreading"],
+      "example": "knowing-god-translation"
+    },
     {
       "name": "source",
       "fullName": "content.source",
@@ -143,19 +153,6 @@
       "example": "Chapter 1: Knowing and Being Known"
     },
     {
-      "name": "sample_paragraphs",
-      "fullName": "content.sample_paragraphs",
-      "category": "content",
-      "type": "string",
-      "description": "Sample paragraphs for book analysis",
-      "descriptionZh": "用于分析书籍的样本段落",
-      "source": "extracted_samples",
-      "stages": ["analysis"],
-      "example": "Paragraph 1: The knowledge of God...",
-      "required": true
-    },
-
-    {
       "name": "source_text",
       "fullName": "content.source_text",
       "category": "content",
@@ -167,31 +164,6 @@
       "canonicalName": "content.source",
       "isLegacy": true
     },
-    {
-      "name": "original_text",
-      "fullName": "content.original_text",
-      "category": "content",
-      "type": "string",
-      "description": "Original text (legacy alias for content.source)",
-      "descriptionZh": "原文（content.source 的旧名称）",
-      "source": "paragraph.source_text",
-      "stages": ["proofreading"],
-      "canonicalName": "content.source",
-      "isLegacy": true
-    },
-    {
-      "name": "translated_text",
-      "fullName": "content.translated_text",
-      "category": "content",
-      "type": "string",
-      "description": "Translated text (legacy alias for content.target)",
-      "descriptionZh": "译文（content.target 的旧名称）",
-      "source": "paragraph.target_text",
-      "stages": ["optimization", "proofreading"],
-      "canonicalName": "content.target",
-      "isLegacy": true
-    },
-
     {
       "name": "previous_source",
       "fullName": "context.previous_source",
@@ -215,18 +187,6 @@
       "example": "在前一章中，我们讨论了..."
     },
     {
-      "name": "next_source",
-      "fullName": "context.next_source",
-      "category": "context",
-      "type": "string",
-      "description": "Next paragraph source text",
-      "descriptionZh": "下一段的源文本",
-      "source": "context_window.after_source",
-      "stages": ["translation"],
-      "example": "Building on this foundation..."
-    },
-
-    {
       "name": "reference_translation",
       "fullName": "pipeline.reference_translation",
       "category": "pipeline",
@@ -248,43 +208,6 @@
       "stages": ["optimization"],
       "example": "Change '无穷无尽' to '无限而永恒' for better accuracy."
     },
-    {
-      "name": "existing_translation",
-      "fullName": "pipeline.existing_translation",
-      "category": "pipeline",
-      "type": "string",
-      "description": "Existing translation (legacy alias for content.target)",
-      "descriptionZh": "现有译文（content.target 的旧名称）",
-      "source": "paragraph.target_text",
-      "stages": ["optimization", "proofreading"],
-      "canonicalName": "content.target",
-      "isLegacy": true
-    },
-    {
-      "name": "previous_translation",
-      "fullName": "pipeline.previous_translation",
-      "category": "pipeline",
-      "type": "string",
-      "description": "Previous paragraph translation (legacy alias for context.previous_target)",
-      "descriptionZh": "上一段译文（context.previous_target 的旧名称）",
-      "source": "context_window.before_target",
-      "stages": ["translation"],
-      "canonicalName": "context.previous_target",
-      "isLegacy": true
-    },
-    {
-      "name": "previous_original",
-      "fullName": "pipeline.previous_original",
-      "category": "pipeline",
-      "type": "string",
-      "description": "Previous paragraph source (legacy alias for context.previous_source)",
-      "descriptionZh": "上一段原文（context.previous_source 的旧名称）",
-      "source": "context_window.before_source",
-      "stages": ["translation"],
-      "canonicalName": "context.previous_source",
-      "isLegacy": true
-    },
-
     {
       "name": "author_name",
       "fullName": "derived.author_name",
@@ -530,6 +453,149 @@
       "stages": ["translation"],
       "example": "false"
     },
+    {
+      "name": "has_author_biography",
+      "fullName": "derived.has_author_biography",
+      "category": "derived",
+      "type": "boolean",
+      "description": "Whether author biography is defined",
+      "descriptionZh": "是否定义了作者简介",
+      "source": "computed",
+      "stages": ["translation", "optimization", "proofreading"],
+      "example": "true"
+    },
+    {
+      "name": "has_bible_policy",
+      "fullName": "derived.has_bible_policy",
+      "category": "derived",
+      "type": "boolean",
+      "description": "Whether Bible reference policy is defined",
+      "descriptionZh": "是否定义了圣经引用策略",
+      "source": "computed",
+      "stages": ["translation"],
+      "example": "false"
+    },
+    {
+      "name": "book_title",
+      "fullName": "derived.book_title",
+      "category": "derived",
+      "type": "string",
+      "description": "Book title extracted from analysis (reformed-theology schema)",
+      "descriptionZh": "从分析结果中提取的书名（改革宗神学模式）",
+      "source": "analysis_result.meta.book_title",
+      "stages": ["translation", "optimization", "proofreading"],
+      "example": "Knowing God"
+    },
+    {
+      "name": "assumed_tradition",
+      "fullName": "derived.assumed_tradition",
+      "category": "derived",
+      "type": "string",
+      "description": "Assumed theological tradition (reformed-theology schema)",
+      "descriptionZh": "假定的神学传统（改革宗神学模式）",
+      "source": "analysis_result.meta.assumed_tradition",
+      "stages": ["translation"],
+      "example": "Reformed evangelical"
+    },
+    {
+      "name": "bible_version",
+      "fullName": "derived.bible_version",
+      "category": "derived",
+      "type": "string",
+      "description": "Target Chinese Bible version for references",
+      "descriptionZh": "圣经引用的目标中文版本",
+      "source": "analysis_result.meta.target_chinese_bible_version",
+      "stages": ["translation"],
+      "example": "CUV"
+    },
+    {
+      "name": "author_theological_identity",
+      "fullName": "derived.author_theological_identity",
+      "category": "derived",
+      "type": "string",
+      "description": "Author's theological identity (reformed-theology schema)",
+      "descriptionZh": "作者的神学身份（改革宗神学模式）",
+      "source": "analysis_result.author_biography.theological_identity",
+      "stages": ["translation"],
+      "example": "Reformed evangelical Anglican"
+    },
+    {
+      "name": "author_historical_context",
+      "fullName": "derived.author_historical_context",
+      "category": "derived",
+      "type": "string",
+      "description": "Historical context of the author's writing",
+      "descriptionZh": "作者写作的历史背景",
+      "source": "analysis_result.author_biography.historical_context",
+      "stages": ["translation"],
+      "example": "Post-war British evangelicalism"
+    },
+    {
+      "name": "author_influence",
+      "fullName": "derived.author_influence",
+      "category": "derived",
+      "type": "string",
+      "description": "How author background influences translation decisions",
+      "descriptionZh": "作者背景如何影响翻译决策",
+      "source": "analysis_result.author_biography.influence_on_translation",
+      "stages": ["translation"],
+      "example": "Emphasize doctrinal precision"
+    },
+    {
+      "name": "bible_reference_policy",
+      "fullName": "derived.bible_reference_policy",
+      "category": "derived",
+      "type": "string",
+      "description": "Formatted Bible reference handling policy",
+      "descriptionZh": "格式化的圣经引用处理策略",
+      "source": "analysis_result.bible_reference_policy (formatted)",
+      "stages": ["translation"],
+      "example": "Use CUV for all Scripture references"
+    },
+    {
+      "name": "sentence_splitting_rules",
+      "fullName": "derived.sentence_splitting_rules",
+      "category": "derived",
+      "type": "string",
+      "description": "Rules for splitting long sentences",
+      "descriptionZh": "长句拆分规则",
+      "source": "analysis_result.syntax_and_logic.sentence_splitting_rules",
+      "stages": ["translation"],
+      "example": "Split at conjunctions when exceeding 40 words"
+    },
+    {
+      "name": "logical_connectors",
+      "fullName": "derived.logical_connectors",
+      "category": "derived",
+      "type": "string",
+      "description": "How to translate logical connectors",
+      "descriptionZh": "逻辑连接词的翻译方式",
+      "source": "analysis_result.syntax_and_logic.logical_connectors",
+      "stages": ["translation"],
+      "example": "Preserve explicit logical relationships"
+    },
+    {
+      "name": "notes_allowed",
+      "fullName": "derived.notes_allowed",
+      "category": "derived",
+      "type": "string",
+      "description": "Types of notes allowed in translation",
+      "descriptionZh": "翻译中允许添加的注释类型",
+      "source": "analysis_result.notes_policy.allowed (formatted)",
+      "stages": ["translation"],
+      "example": "Translator notes for cultural context"
+    },
+    {
+      "name": "notes_forbidden",
+      "fullName": "derived.notes_forbidden",
+      "category": "derived",
+      "type": "string",
+      "description": "Types of notes forbidden in translation",
+      "descriptionZh": "翻译中禁止添加的注释类型",
+      "source": "analysis_result.notes_policy.forbidden (formatted)",
+      "stages": ["translation"],
+      "example": "Personal opinions, theological commentary"
+    },
 
     {
       "name": "word_count",
@@ -626,11 +692,6 @@
 
   "aliases": {
     "source_text": "content.source",
-    "original_text": "content.source",
-    "translated_text": "content.target",
-    "existing_translation": "content.target",
-    "previous_translation": "context.previous_target",
-    "previous_original": "context.previous_source",
     "writing_style": "derived.writing_style",
     "tone": "derived.tone",
     "terminology_table": "derived.terminology_table"

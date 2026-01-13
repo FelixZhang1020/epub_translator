@@ -16,11 +16,18 @@ cd backend
 source venv/bin/activate
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
-# Run tests (currently no tests directory)
+# Run tests
 pytest                        # Uses asyncio_mode="auto" from pyproject.toml
+pytest tests/test_file.py     # Run single test file
+pytest -k "test_name"         # Run tests matching pattern
 
 # Linting
 ruff check .                  # Line length: 100
+
+# Database migrations (Alembic)
+alembic upgrade head          # Apply all migrations
+alembic revision --autogenerate -m "description"  # Create new migration
+alembic downgrade -1          # Rollback one migration
 ```
 
 ### Frontend (React + TypeScript + Vite)

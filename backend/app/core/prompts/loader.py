@@ -35,23 +35,9 @@ logger = logging.getLogger(__name__)
 # backward compatibility with existing templates.
 
 VARIABLE_ALIASES: Dict[str, str] = {
-    # Content aliases - all map to canonical content.source / content.target
+    # Content aliases - map to canonical content.source / content.target
     "source_text": "content.source",
-    "original_text": "content.source",
     "content.source_text": "content.source",
-    "content.original_text": "content.source",
-
-    "translated_text": "content.target",
-    "current_translation": "content.target",
-    "existing_translation": "content.target",
-    "content.translated_text": "content.target",
-    "content.current_translation": "content.target",
-    "content.existing_translation": "content.target",
-
-    # Pipeline aliases
-    "pipeline.existing_translation": "content.target",
-    "pipeline.previous_translation": "context.previous_target",
-    "pipeline.previous_original": "context.previous_source",
 
     # Derived aliases for cleaner access
     "writing_style": "derived.writing_style",
@@ -1341,15 +1327,13 @@ class PromptLoader:
 
     # Stage-specific variable availability mapping
     # Variables not listed here are assumed available in all stages
+    # Note: content.sample_paragraphs is internal (auto-populated during analysis) and not listed here
     STAGE_VARIABLES: Dict[str, List[str]] = {
         "content.source": ["translation", "optimization", "proofreading"],
         "content.target": ["optimization", "proofreading"],
         "content.source_text": ["translation", "optimization"],
-        "content.translated_text": ["optimization", "proofreading"],
-        "content.sample_paragraphs": ["analysis"],
         "context.previous_source": ["translation"],
         "context.previous_target": ["translation"],
-        "context.next_source": ["translation"],
         "pipeline.reference_translation": ["translation"],
         "pipeline.suggested_changes": ["optimization"],
     }
