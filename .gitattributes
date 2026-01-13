@@ -1,0 +1,7 @@
+# Exclude non-source assets from language stats
+*.epub linguist-vendored
+epub_sample/* linguist-vendored
+backend/test_data/** linguist-vendored
+data/** linguist-vendored
+docs/** linguist-vendored
+tests/fixtures/** linguist-vendored
