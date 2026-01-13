@@ -1,3 +1,9 @@
+<p align="right">
+  <a href="README_ZH.md">
+    <img src="https://img.shields.io/badge/简体中文-Click_Here-orange?style=for-the-badge" alt="简体中文">
+  </a>
+</p>
+
 # ePub Translator
 
 <div align="center">
