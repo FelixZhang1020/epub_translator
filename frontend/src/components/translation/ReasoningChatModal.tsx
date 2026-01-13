@@ -206,6 +206,7 @@ export function ReasoningChatModal({
                 message={msg}
                 onApplySuggestion={() => applySuggestionMutation.mutate(msg.id)}
                 isApplying={applySuggestionMutation.isPending}
+                isLocked={conversation.is_locked}
                 t={t}
               />
             ))
@@ -259,11 +260,13 @@ function MessageBubble({
   message,
   onApplySuggestion,
   isApplying,
+  isLocked,
   t,
 }: {
   message: ConversationMessage
   onApplySuggestion: () => void
   isApplying: boolean
+  isLocked: boolean
   t: (key: string) => string
 }) {
   const isUser = message.role === 'user'
@@ -294,18 +297,24 @@ function MessageBubble({
             <div className="text-sm bg-white dark:bg-gray-800 p-2 rounded mb-2 text-gray-800 dark:text-gray-200">
               {message.suggested_translation}
             </div>
-            <button
-              onClick={onApplySuggestion}
-              disabled={isApplying}
-              className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-            >
-              {isApplying ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Check className="w-4 h-4" />
-              )}
-              {t('translate.applyTranslation')}
-            </button>
+            {isLocked ? (
+              <div className="text-xs text-amber-600 dark:text-amber-400">
+                {t('translate.cannotApplyLocked')}
+              </div>
+            ) : (
+              <button
+                onClick={onApplySuggestion}
+                disabled={isApplying}
+                className="flex items-center gap-1 px-3 py-1.5 bg-green-600 text-white text-sm rounded hover:bg-green-700 disabled:bg-gray-400 transition-colors"
+              >
+                {isApplying ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                {t('translate.applyTranslation')}
+              </button>
+            )}
           </div>
         )}
 

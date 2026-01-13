@@ -430,10 +430,13 @@ class PromptLoader:
         config = cls.load_project_config(project_id)
 
         # Determine template name from config
-        template_name = "default"
+        # Priority: project config > global defaults.json > "default"
+        template_name = cls.get_default_template(prompt_type)  # Use global default
         if config and "prompts" in config:
             prompt_config = config["prompts"].get(prompt_type, {})
-            template_name = prompt_config.get("system_template", "default")
+            # Only override if project has explicit config
+            if "system_template" in prompt_config:
+                template_name = prompt_config["system_template"]
 
         return cls.load_template(
             prompt_type,

@@ -8,12 +8,10 @@ from .base import PromptStrategy
 from .direct import DirectTranslationStrategy
 from .author_aware import AuthorAwareStrategy
 from .optimization import OptimizationStrategy
-from .iterative import IterativeStrategy
 
 __all__ = [
     "PromptStrategy",
     "DirectTranslationStrategy",
     "AuthorAwareStrategy",
     "OptimizationStrategy",
-    "IterativeStrategy",
 ]

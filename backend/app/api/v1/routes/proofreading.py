@@ -11,6 +11,7 @@ from app.models.schemas import LLMTaskRequest
 from app.core.proofreading.service import proofreading_service
 from app.core.llm.config_service import LLMConfigService
 from app.core.llm.runtime_config import LLMConfigResolver, LLMRuntimeConfig
+from app.core.prompts.loader import PromptLoader
 
 
 router = APIRouter()
@@ -380,26 +381,29 @@ async def get_quick_recommendation(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    # Create a simple prompt for the recommendation
-    prompt = f"""Based on the feedback provided, improve the translation.
+    # Load prompt template (uses optimization/ for unified prompts)
+    template = PromptLoader.load_template("optimization")
 
-Original text:
-{request.original_text}
+    # Prepare variables for the prompt
+    variables = {
+        "content": {
+            "source": request.original_text,
+            "target": request.current_translation,
+        },
+        "feedback": request.feedback,
+    }
 
-Current translation:
-{request.current_translation}
-
-Feedback:
-{request.feedback}
-
-Please provide an improved translation that addresses the feedback. Output ONLY the improved translation, nothing else."""
+    # Render prompts
+    system_prompt = PromptLoader.render(template.system_prompt, variables)
+    user_prompt = PromptLoader.render(template.user_prompt_template, variables)
 
     # Use LLMRuntimeConfig's built-in methods for litellm call
     try:
         response = await acompletion(
             model=llm_config.get_litellm_model(),
             messages=[
-                {"role": "user", "content": prompt},
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
             ],
             api_key=llm_config.api_key,
             temperature=llm_config.temperature,  # Uses stage-specific default from resolver
