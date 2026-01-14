@@ -92,14 +92,14 @@ cp .env.example .env  # 如有端口变动请同步修改
 ### 运行
 ```bash
 # 方案 A：分别启动
-cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
+cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 5300
 cd frontend && npm run dev
 
 # 方案 B：在仓库根目录一键启动（首次会自动安装依赖）
 ./start.sh
 ```
 
-访问 http://localhost:5173 ，API 文档在 http://localhost:8000/docs 。
+访问 http://localhost:5200 ，API 文档在 http://localhost:5300/docs 。
 
 ## 使用流程
 
@@ -120,8 +120,8 @@ cd frontend && npm run dev
 |------|------|--------|
 | `DEBUG` | 调试模式 | `true` |
 | `HOST` | 后端监听地址 | `0.0.0.0` |
-| `PORT` | 后端端口 | `8000` |
-| `FRONTEND_PORT` | 用于生成 CORS 白名单的前端端口 | `5173` |
+| `PORT` | 后端端口 | `5300` |
+| `FRONTEND_PORT` | 用于生成 CORS 白名单的前端端口 | `5200` |
 | `DATABASE_URL` | 数据库连接串（默认 SQLite） | `sqlite+aiosqlite:///./epub_translator.db` |
 | `UPLOAD_DIR` | 临时上传目录 | `data/temp/uploads` |
 | `OUTPUT_DIR` | 临时输出目录 | `data/temp/outputs` |
@@ -137,7 +137,7 @@ cd frontend && npm run dev
 | `DEFAULT_CHUNK_SIZE` | 每次翻译的字符数 | `500` |
 | `MAX_RETRIES` | 调用失败重试次数 | `3` |
 | `RETRY_DELAY` | 重试间隔（秒） | `1.0` |
-| `CORS_ORIGINS` | 允许的跨域来源 | `["http://localhost:5173"]` |
+| `CORS_ORIGINS` | 允许的跨域来源 | `["http://localhost:5200"]` |
 
 </details>
 
@@ -146,9 +146,9 @@ cd frontend && npm run dev
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
-| `VITE_PORT` | 前端开发端口 | `5173` |
+| `VITE_PORT` | 前端开发端口 | `5200` |
 | `VITE_API_HOST` | 后端 Host | `localhost` |
-| `VITE_API_PORT` | 后端端口 | `8000` |
+| `VITE_API_PORT` | 后端端口 | `5300` |
 
 </details>
 

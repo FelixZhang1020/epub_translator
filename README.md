@@ -90,14 +90,14 @@ cp .env.example .env  # adjust API host/port if changed
 ### Run
 ```bash
 # Option A: manual
-cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 8000
+cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 5300
 cd frontend && npm run dev
 
 # Option B: from repo root (auto installs on first run)
 ./start.sh
 ```
 
-Open http://localhost:5173 and API docs at http://localhost:8000/docs.
+Open http://localhost:5200 and API docs at http://localhost:5300/docs.
 
 ## Usage Workflow
 
@@ -118,8 +118,8 @@ Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 |----------|-------------|---------|
 | `DEBUG` | Enable debug mode | `true` |
 | `HOST` | Backend host | `0.0.0.0` |
-| `PORT` | Backend port | `8000` |
-| `FRONTEND_PORT` | Port used for CORS allowlist | `5173` |
+| `PORT` | Backend port | `5300` |
+| `FRONTEND_PORT` | Port used for CORS allowlist | `5200` |
 | `DATABASE_URL` | Database URL (SQLite by default) | `sqlite+aiosqlite:///./epub_translator.db` |
 | `UPLOAD_DIR` | Directory for temporary uploads | `data/temp/uploads` |
 | `OUTPUT_DIR` | Directory for temporary outputs | `data/temp/outputs` |
@@ -135,7 +135,7 @@ Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 | `DEFAULT_CHUNK_SIZE` | Characters per translation chunk | `500` |
 | `MAX_RETRIES` | Retry count for LLM calls | `3` |
 | `RETRY_DELAY` | Seconds between retries | `1.0` |
-| `CORS_ORIGINS` | Allowed origins list | `["http://localhost:5173"]` |
+| `CORS_ORIGINS` | Allowed origins list | `["http://localhost:5200"]` |
 
 </details>
 
@@ -144,9 +144,9 @@ Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_PORT` | Frontend dev server port | `5173` |
+| `VITE_PORT` | Frontend dev server port | `5200` |
 | `VITE_API_HOST` | Backend host | `localhost` |
-| `VITE_API_PORT` | Backend port | `8000` |
+| `VITE_API_PORT` | Backend port | `5300` |
 
 </details>
 
