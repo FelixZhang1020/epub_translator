@@ -43,6 +43,9 @@ class Settings(BaseSettings):
     # If True, require auth on all endpoints; if False, only on sensitive ones
     require_auth_all: bool = False
 
+    # Feature flags
+    enable_epub_export: bool = True  # Set to False to hide ePub export option (copyright compliance)
+
     # LLM API Keys (loaded from environment, used by LLMConfigService)
     openai_api_key: Optional[str] = None
     anthropic_api_key: Optional[str] = None

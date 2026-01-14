@@ -255,6 +255,7 @@ export interface Conversation {
   original_text: string
   initial_translation: string
   current_translation: string
+  is_locked: boolean  // Whether the translation is locked/confirmed
   messages: ConversationMessage[]
   provider: string
   model: string
@@ -596,6 +597,11 @@ export interface ParameterReviewResponse {
   summary: Record<string, number> // overall stats
 }
 
+// Feature flags from backend
+export interface FeatureFlags {
+  enable_epub_export: boolean
+}
+
 export const api = {
   // Projects
   async getProjects(): Promise<Project[]> {
@@ -711,10 +717,13 @@ export const api = {
     return data
   },
 
-  async getExportPreview(projectId: string, chapterId?: string): Promise<{ html: string }> {
+  async getExportPreview(projectId: string, chapterId?: string, chapterIds?: string[]): Promise<{ html: string }> {
     const params = new URLSearchParams()
     if (chapterId) {
       params.append('chapter_id', chapterId)
+    }
+    if (chapterIds && chapterIds.length > 0) {
+      chapterIds.forEach(id => params.append('chapter_ids', id))
     }
     const queryString = params.toString()
     const url = `/export/${projectId}/preview${queryString ? `?${queryString}` : ''}`
@@ -1405,6 +1414,12 @@ export const api = {
   // Parameter Review
   async getParameterReview(projectId: string): Promise<ParameterReviewResponse> {
     const { data } = await client.get(`/prompts/projects/${projectId}/parameter-review`)
+    return data
+  },
+
+  // Feature Flags
+  async getFeatureFlags(): Promise<FeatureFlags> {
+    const { data } = await client.get('/feature-flags')
     return data
   },
 }
