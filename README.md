@@ -48,7 +48,7 @@ ePub Translator is a full-stack app that analyzes, translates, and proofreads eP
 
 ## Highlights
 
-- **Multi-LLM**: OpenAI, Anthropic Claude, Google Gemini, Alibaba Qwen, DeepSeek
+- **Multi-LLM**: OpenAI, Anthropic Claude, Google Gemini, Alibaba Qwen, DeepSeek, OpenRouter, Ollama
 - **Guided pipeline**: Analysis → Translation → Proofreading → Export with chapter-level state
 - **Style extraction**: Automatically captures tone, terminology, and writing style
 - **Reference matching**: Aligns paragraphs with existing translations for consistency
@@ -60,9 +60,9 @@ ePub Translator is a full-stack app that analyzes, translates, and proofreads eP
 
 | Layer | Technology |
 |-------|------------|
-| Backend | Python 3.11+, FastAPI, SQLAlchemy, Uvicorn |
-| Frontend | React + Vite + TypeScript, Zustand, Ant Design |
-| Storage | SQLite by default (override via `DATABASE_URL`) |
+| Backend | Python 3.11+, FastAPI, SQLAlchemy (async), LiteLLM, Alembic |
+| Frontend | React 18 + Vite + TypeScript, Zustand, TanStack Query, Tailwind CSS |
+| Storage | SQLite with aiosqlite (async), file-based project storage |
 
 ## Quick Start
 
@@ -156,26 +156,34 @@ Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 epub_translator/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/routes/    # REST endpoints
-│   │   ├── core/             # Pipeline + services
-│   │   │   ├── analysis/     # Book analysis
-│   │   │   ├── epub/         # ePub parsing/export
-│   │   │   ├── llm/          # Provider adapters
-│   │   │   ├── matching/     # Reference alignment
-│   │   │   ├── proofreading/ # Proofreading routines
-│   │   │   ├── prompts/      # Prompt loading/variables
-│   │   │   └── translation/  # Translation pipeline
-│   │   └── models/database/  # SQLAlchemy models
-│   ├── prompts/              # Prompt templates
+│   │   ├── api/v1/routes/    # REST endpoints (11 modules)
+│   │   ├── core/             # Business logic
+│   │   │   ├── analysis/     # Book analysis service
+│   │   │   ├── epub/         # ePub parsing (lxml) & generation
+│   │   │   ├── llm/          # UnifiedLLMGateway, LLMRuntimeConfig
+│   │   │   ├── matching/     # Reference paragraph alignment
+│   │   │   ├── proofreading/ # Proofreading service
+│   │   │   ├── prompts/      # UnifiedVariableBuilder, PromptLoader
+│   │   │   └── translation/  # Pipeline, strategies, orchestrator
+│   │   ├── models/database/  # SQLAlchemy models (15 tables)
+│   │   └── utils/            # Utilities (safe string handling)
+│   ├── prompts/              # Prompt templates (.md files)
+│   ├── migrations/           # Alembic database migrations
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
-│       ├── components/       # UI components
-│       ├── pages/            # Views
-│       ├── services/api/     # API client
-│       ├── stores/           # Zustand state
-│       └── i18n/             # EN/ZH copy
-├── scripts/                  # Utility scripts
+│       ├── components/       # React components
+│       ├── pages/            # Page views + workflow pages
+│       ├── services/api/     # Typed Axios client
+│       ├── stores/           # Zustand (appStore, settingsStore)
+│       └── i18n/             # EN/ZH translations
+├── projects/                 # Per-project data storage
+│   └── {project_id}/
+│       ├── uploads/          # Original & reference ePubs
+│       ├── exports/          # Generated outputs
+│       ├── prompts/          # Custom prompt overrides
+│       └── variables.json    # Custom template variables
+├── scripts/dev/              # Development scripts
 ├── start.sh                  # One-shot setup + dev servers
 └── tests/                    # Test fixtures
 ```
@@ -185,27 +193,32 @@ epub_translator/
 | Endpoint | Description |
 |----------|-------------|
 | `/api/v1/upload` | ePub upload and project creation |
-| `/api/v1/analysis` | Book content analysis |
-| `/api/v1/translation` | Translation workflow |
-| `/api/v1/proofreading` | Proofreading suggestions |
-| `/api/v1/export` | PDF/HTML (plain-text) export |
+| `/api/v1/projects` | Project management (list, get, delete, favorite) |
+| `/api/v1/analysis` | Book content analysis (streaming supported) |
+| `/api/v1/translation` | Translation workflow (start, pause, resume, cancel) |
+| `/api/v1/proofreading` | Proofreading suggestions and feedback |
+| `/api/v1/export` | PDF/HTML export (bilingual or translation-only) |
 | `/api/v1/prompts` | Prompt template management |
-| `/api/v1/llm-settings` | LLM configuration |
+| `/api/v1/settings/llm` | LLM configuration CRUD |
 | `/api/v1/workflow` | Workflow state management |
-| `/api/v1/reference` | Reference ePub matching |
-| `/api/v1/preview` | Chapter content preview |
+| `/api/v1/reference` | Reference ePub upload and matching |
+| `/api/v1/preview` | Chapter content and TOC preview |
 
 ## Prompt Variables
 
 Templates support `{{variable}}` substitution:
 
-| Namespace | Variables |
-|-----------|-----------|
-| `project.*` | `title`, `author`, `source_language`, `target_language` |
-| `content.*` | `source_text`, `paragraph_index`, `chapter_index` |
-| `pipeline.*` | `existing_translation`, `reference_translation` |
-| `derived.*` | `writing_style`, `tone`, `terminology_table` |
-| `user.*` | Custom user-defined variables |
+| Namespace | Description | Examples |
+|-----------|-------------|----------|
+| `project.*` | Book metadata | `title`, `author`, `source_language`, `target_language` |
+| `content.*` | Current text being processed | `source`, `target`, `chapter_title` |
+| `context.*` | Adjacent paragraphs | `previous_source`, `previous_target`, `next_source` |
+| `derived.*` | Analysis results | `writing_style`, `tone`, `terminology_table`, `translation_principles` |
+| `pipeline.*` | Previous step outputs | `reference_translation`, `suggested_changes` |
+| `meta.*` | Runtime values | `stage`, `word_count`, `chapter_index`, `paragraph_index` |
+| `user.*` | Custom variables | Defined in `projects/{id}/variables.json` |
+
+See `backend/prompts/VARIABLES.md` for complete reference.
 
 ## License
 

@@ -50,7 +50,7 @@ ePub Translator 是一个全栈应用，自动完成电子书的分析、翻译�
 
 ## 功能亮点
 
-- **多模型支持**：OpenAI、Anthropic Claude、Google Gemini、阿里通义千问、DeepSeek
+- **多模型支持**：OpenAI、Anthropic Claude、Google Gemini、阿里通义千问、DeepSeek、OpenRouter、Ollama
 - **四步流程**：分析 → 翻译 → 校对 → 导出，按章节管理进度
 - **风格提取**：自动识别语气、术语、写作风格
 - **参考对齐**：段落与已有译文匹配，保证一致性
@@ -62,9 +62,9 @@ ePub Translator 是一个全栈应用，自动完成电子书的分析、翻译�
 
 | 层级 | 技术 |
 |------|------|
-| 后端 | Python 3.11+、FastAPI、SQLAlchemy、Uvicorn |
-| 前端 | React + Vite + TypeScript、Zustand、Ant Design |
-| 存储 | 默认 SQLite，可通过 `DATABASE_URL` 替换 |
+| 后端 | Python 3.11+、FastAPI、SQLAlchemy (async)、LiteLLM、Alembic |
+| 前端 | React 18 + Vite + TypeScript、Zustand、TanStack Query、Tailwind CSS |
+| 存储 | SQLite + aiosqlite (async)，项目文件独立存储 |
 
 ## 快速开始
 
@@ -158,26 +158,34 @@ cd frontend && npm run dev
 epub_translator/
 ├── backend/
 │   ├── app/
-│   │   ├── api/v1/routes/    # REST 接口
-│   │   ├── core/             # 核心流程与服务
-│   │   │   ├── analysis/     # 内容分析
-│   │   │   ├── epub/         # 解析与导出
-│   │   │   ├── llm/          # 模型适配器
-│   │   │   ├── matching/     # 参考匹配
-│   │   │   ├── proofreading/ # 校对模块
-│   │   │   ├── prompts/      # 提示词管理
-│   │   │   └── translation/  # 翻译流水线
-│   │   └── models/database/  # 数据模型
-│   ├── prompts/              # 提示词模板
+│   │   ├── api/v1/routes/    # REST 接口（11 个模块）
+│   │   ├── core/             # 业务逻辑
+│   │   │   ├── analysis/     # 书籍分析服务
+│   │   │   ├── epub/         # ePub 解析（lxml）与生成
+│   │   │   ├── llm/          # UnifiedLLMGateway、LLMRuntimeConfig
+│   │   │   ├── matching/     # 参考段落对齐
+│   │   │   ├── proofreading/ # 校对服务
+│   │   │   ├── prompts/      # UnifiedVariableBuilder、PromptLoader
+│   │   │   └── translation/  # 翻译流水线、策略、编排器
+│   │   ├── models/database/  # SQLAlchemy 模型（15 张表）
+│   │   └── utils/            # 工具类（安全字符串处理）
+│   ├── prompts/              # 提示词模板（.md 文件）
+│   ├── migrations/           # Alembic 数据库迁移
 │   └── requirements.txt
 ├── frontend/
 │   └── src/
-│       ├── components/       # 组件
-│       ├── pages/            # 页面
-│       ├── services/api/     # API 客户端
-│       ├── stores/           # 状态管理
-│       └── i18n/             # 国际化
-├── scripts/                  # 脚本工具
+│       ├── components/       # React 组件
+│       ├── pages/            # 页面视图与工作流页面
+│       ├── services/api/     # 类型化 Axios 客户端
+│       ├── stores/           # Zustand（appStore、settingsStore）
+│       └── i18n/             # 中英文翻译
+├── projects/                 # 项目数据独立存储
+│   └── {project_id}/
+│       ├── uploads/          # 原始与参考 ePub
+│       ├── exports/          # 生成的输出文件
+│       ├── prompts/          # 自定义提示词覆盖
+│       └── variables.json    # 自定义模板变量
+├── scripts/dev/              # 开发脚本
 ├── start.sh                  # 一键安装与启动脚本
 └── tests/                    # 测试资源
 ```
@@ -187,27 +195,32 @@ epub_translator/
 | 端点 | 描述 |
 |------|------|
 | `/api/v1/upload` | 上传 ePub 并创建项目 |
-| `/api/v1/analysis` | 书籍内容分析 |
-| `/api/v1/translation` | 翻译流程 |
-| `/api/v1/proofreading` | 校对建议 |
-| `/api/v1/export` | PDF/HTML 纯文本导出 |
-| `/api/v1/prompts` | 提示词管理 |
-| `/api/v1/llm-settings` | 模型配置 |
+| `/api/v1/projects` | 项目管理（列表、详情、删除、收藏） |
+| `/api/v1/analysis` | 书籍内容分析（支持流式输出） |
+| `/api/v1/translation` | 翻译流程（启动、暂停、恢复、取消） |
+| `/api/v1/proofreading` | 校对建议与反馈 |
+| `/api/v1/export` | PDF/HTML 导出（双语或仅译文） |
+| `/api/v1/prompts` | 提示词模板管理 |
+| `/api/v1/settings/llm` | 模型配置增删改查 |
 | `/api/v1/workflow` | 流程状态管理 |
-| `/api/v1/reference` | 参考译文匹配 |
-| `/api/v1/preview` | 章节预览 |
+| `/api/v1/reference` | 参考 ePub 上传与匹配 |
+| `/api/v1/preview` | 章节内容与目录预览 |
 
 ## 提示词变量
 
 模板支持 `{{variable}}` 占位符：
 
-| 命名空间 | 变量 |
-|----------|------|
-| `project.*` | `title`、`author`、`source_language`、`target_language` |
-| `content.*` | `source_text`、`paragraph_index`、`chapter_index` |
-| `pipeline.*` | `existing_translation`、`reference_translation` |
-| `derived.*` | `writing_style`、`tone`、`terminology_table` |
-| `user.*` | 用户自定义变量 |
+| 命名空间 | 描述 | 示例变量 |
+|----------|------|----------|
+| `project.*` | 书籍元数据 | `title`、`author`、`source_language`、`target_language` |
+| `content.*` | 当前处理的文本 | `source`、`target`、`chapter_title` |
+| `context.*` | 相邻段落 | `previous_source`、`previous_target`、`next_source` |
+| `derived.*` | 分析结果 | `writing_style`、`tone`、`terminology_table`、`translation_principles` |
+| `pipeline.*` | 上一步输出 | `reference_translation`、`suggested_changes` |
+| `meta.*` | 运行时值 | `stage`、`word_count`、`chapter_index`、`paragraph_index` |
+| `user.*` | 自定义变量 | 在 `projects/{id}/variables.json` 中定义 |
+
+完整参考见 `backend/prompts/VARIABLES.md`。
 
 ## 许可证
 
