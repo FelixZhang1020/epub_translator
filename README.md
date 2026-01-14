@@ -16,7 +16,31 @@
 
 ---
 
-LLM-powered pipeline that translates English ePub books into Chinese while keeping layout, tone, and context intact.
+LLM-powered pipeline that translates English ePub books into Chinese while keeping layout, tone, and context intact. Exports are restricted to plain-text PDF/HTML (no ePub) to reduce copyright risk.
+
+## Background
+
+In years of study and close reading, I kept running into the same problem: foundational books in some fields simply don’t have dependable Chinese editions.
+
+- *The Anxiety of Influence* (Harold Bloom, 1973) coined the core theory of “anxiety of influence,” shaping how the English-speaking world thinks about literary tradition, originality, and canon formation. In Chinese, the terminology is so abstract—and handled so inconsistently across translations—that the book often stays “referenced” but rarely gets understood or digested through stable side-by-side reading.
+- *The Presentation of Self in Everyday Life* (Erving Goffman, 1956) reframed social interaction with “stage/role/situation” metaphors, influencing sociology, anthropology, communications, and cultural studies. Chinese readers face divergent styles across translations and inconsistent key concepts between chapters or editions, making systematic study and citation costly.
+- *Church Dogmatics* (Karl Barth, 1932–1967) is often ranked with Calvin’s *Institutes* for depth, scale, and influence. The barrier for many Chinese readers isn’t the content itself but the sheer size, translation difficulty, and scattered resources—true side-by-side reading is nearly impossible.
+
+These aren’t obscure titles; they’re the wells people keep drawing from. The blocker isn’t willingness to read the originals—it’s having a practical, copyright-respecting way to do sustained, consistent, revisitable parallel reading.
+
+Out of that personal experience, I built this ePub translation tool. I couldn’t find a GitHub project designed around original/translation comparison, close reading, and long-form study, so I leaned on Claude Code and built the pipeline from scratch to help readers who need high-quality materials but are constrained by language and uneven translations.
+
+To respect copyright and minimize risk, translations stay inside the tool for side-by-side reading or export only as plain-text PDF/HTML. No ePub generation or distribution.
+
+## Prompt Engineering
+
+The tool ships with a battle-tested set of translation guides, workflow constraints, and structured prompt engineering plus parameter defaults. This baseline alone outperforms “quick prompts and go,” giving whole-book translation a stable floor.
+
+On top of that, quality still depends on two factors working together:
+1) The capability of the LLM you choose—this sets the ceiling for understanding, long-range consistency, and handling complex syntax.
+2) Prompt design tailored to the specific book—this drives terminology choices, tone control, and overall readability.
+
+So this project isn’t just a shell; it’s a translation system with a defined baseline. And it intentionally leaves headroom for power users: when prompts are refined for a specific book, quality can climb meaningfully beyond the built-in defaults.
 
 ## Overview
 
@@ -29,7 +53,7 @@ ePub Translator is a full-stack app that analyzes, translates, and proofreads eP
 - **Style extraction**: Automatically captures tone, terminology, and writing style
 - **Reference matching**: Aligns paragraphs with existing translations for consistency
 - **Prompt control**: System/user prompts with variables, reusable templates
-- **Bilingual export**: Generates ePub with original + translated text
+- **Plain-text export**: Outputs bilingual PDF/HTML only (no ePub) to avoid copyright issues
 - **Web UI**: Preview chapters, edit translations, and rerun steps as needed
 
 ## Tech Stack
@@ -82,7 +106,7 @@ Open http://localhost:5173 and API docs at http://localhost:8000/docs.
 3. Run **Analysis** to extract tone, style, and terminology
 4. Run **Translation**; reference matching keeps phrasing consistent
 5. Use **Proofreading** to refine outputs or edit paragraphs manually
-6. **Export** a bilingual ePub and download from the UI
+6. **Export** bilingual output as plain-text PDF or HTML (no ePub) and download from the UI
 7. Manage prompts/reference files under `backend/prompts/` or in the UI
 
 ## Configuration
@@ -164,7 +188,7 @@ epub_translator/
 | `/api/v1/analysis` | Book content analysis |
 | `/api/v1/translation` | Translation workflow |
 | `/api/v1/proofreading` | Proofreading suggestions |
-| `/api/v1/export` | ePub export |
+| `/api/v1/export` | PDF/HTML (plain-text) export |
 | `/api/v1/prompts` | Prompt template management |
 | `/api/v1/llm-settings` | LLM configuration |
 | `/api/v1/workflow` | Workflow state management |
