@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import { getTranslation, Language } from './i18n'
+import { api } from './services/api/client'
 import './index.css'
 
 // Apply language immediately before React renders to prevent flash
@@ -63,6 +64,21 @@ const queryClient = new QueryClient({
       retry: 1,
     },
   },
+})
+
+// Prefetch all prompt templates at app startup to avoid loading delays
+const PROMPT_CATEGORIES = ['analysis', 'translation', 'proofreading', 'optimization'] as const
+PROMPT_CATEGORIES.forEach(category => {
+  queryClient.prefetchQuery({
+    queryKey: ['prompt-templates', category],
+    queryFn: () => api.getPromptTemplates(category),
+    staleTime: Infinity,
+  })
+  queryClient.prefetchQuery({
+    queryKey: ['prompt-default', category],
+    queryFn: () => api.getDefaultTemplate(category),
+    staleTime: Infinity,
+  })
 })
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

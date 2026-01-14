@@ -212,7 +212,7 @@ class ProofreadingService:
                     stage="proofreading",
                     source_text=para.original_text,
                     target_text=latest_translation.translated_text,
-                    paragraph_index=para.order_index,
+                    paragraph_index=para.paragraph_number,
                     chapter_index=None,  # Could be fetched if needed
                     chapter_title=None,  # Could be fetched if needed
                 )

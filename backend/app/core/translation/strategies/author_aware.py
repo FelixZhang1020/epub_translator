@@ -82,9 +82,9 @@ class AuthorAwareStrategy(PromptStrategy):
             "source_text": context.source.text,
             "target_language": context.target_language,
             "project": {
-                "title": "",
-                "author": "",
-                "author_background": "",
+                "title": context.project.title if context.project else "",
+                "author": context.project.author if context.project else "",
+                "author_background": context.project.author_background if context.project else "",
             },
             "derived": {},
         }

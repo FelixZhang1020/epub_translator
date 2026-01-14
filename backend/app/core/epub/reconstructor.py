@@ -43,6 +43,7 @@ class EPUBReconstructor:
         original_epub: Path | str,
         translations: list[TranslationMapping],
         target_language: str = "zh",
+        strip_images: bool = False,
     ):
         """Initialize reconstructor.
 
@@ -50,10 +51,12 @@ class EPUBReconstructor:
             original_epub: Path to original EPUB file
             translations: List of translation mappings
             target_language: Target language code (e.g., "zh", "ja")
+            strip_images: If True, remove all images from the output EPUB
         """
         self.original_path = Path(original_epub)
         self.translations = translations
         self.target_language = target_language
+        self.strip_images = strip_images
 
         # Build lookup dict: file_path -> xpath -> translated_text
         self.translation_map: dict[str, dict[str, str]] = {}
@@ -112,10 +115,11 @@ class EPUBReconstructor:
         """
         # Get translations for this file
         file_translations = self.translation_map.get(rel_path, {})
-        if not file_translations:
-            return  # No translations for this file
 
-        # Parse XHTML
+        # Parse XHTML (always parse if we need to strip images)
+        if not file_translations and not self.strip_images:
+            return  # No translations and no image stripping needed
+
         content = file_path.read_bytes()
         parser = etree.XMLParser(recover=True, remove_blank_text=False)
 
@@ -126,8 +130,13 @@ class EPUBReconstructor:
             from lxml import html
             tree = html.fromstring(content)
 
-        # Apply translations
         modified = False
+
+        # Strip images if requested
+        if self.strip_images:
+            modified = self._strip_images_from_tree(tree) or modified
+
+        # Apply translations
         for xpath, translated_text in file_translations.items():
             try:
                 # Try to find element by xpath
@@ -299,6 +308,39 @@ class EPUBReconstructor:
         match = re.search(r"<!DOCTYPE[^>]+>", content_str, re.IGNORECASE)
         return match.group(0) if match else None
 
+    def _strip_images_from_tree(self, tree: etree._Element) -> bool:
+        """Remove all image elements from the XML tree.
+
+        Removes: img, figure, picture, svg, image elements
+
+        Args:
+            tree: lxml element tree root
+
+        Returns:
+            True if any elements were removed
+        """
+        removed = False
+
+        # Define tags to remove (with and without namespace)
+        image_tags = ["img", "figure", "picture", "svg", "image"]
+
+        for tag_name in image_tags:
+            # Try with XHTML namespace
+            for elem in tree.xpath(f"//x:{tag_name}", namespaces=XHTML_NSMAP):
+                parent = elem.getparent()
+                if parent is not None:
+                    parent.remove(elem)
+                    removed = True
+
+            # Try without namespace
+            for elem in tree.xpath(f"//{tag_name}"):
+                parent = elem.getparent()
+                if parent is not None:
+                    parent.remove(elem)
+                    removed = True
+
+        return removed
+
     def _update_opf(self, file_path: Path):
         """Update OPF metadata with target language.
 
@@ -385,6 +427,7 @@ class BilingualEPUBBuilder:
         original_epub: Path | str,
         translations: list[TranslationMapping],
         style: str = "stacked",  # "stacked" or "side-by-side"
+        strip_images: bool = False,
     ):
         """Initialize bilingual builder.
 
@@ -393,10 +436,12 @@ class BilingualEPUBBuilder:
             translations: List of translation mappings
             style: Display style - "stacked" (original above translation)
                    or "side-by-side" (table layout)
+            strip_images: If True, remove all images from the output EPUB
         """
         self.original_path = Path(original_epub)
         self.translations = translations
         self.style = style
+        self.strip_images = strip_images
 
         # Build lookup dict
         self.translation_map: dict[str, dict[str, str]] = {}
@@ -480,7 +525,9 @@ class BilingualEPUBBuilder:
     def _make_bilingual(self, file_path: Path, rel_path: str):
         """Make file bilingual with original + translation."""
         file_translations = self.translation_map.get(rel_path, {})
-        if not file_translations:
+
+        # Skip if no translations and no image stripping needed
+        if not file_translations and not self.strip_images:
             return
 
         content = file_path.read_bytes()
@@ -491,6 +538,12 @@ class BilingualEPUBBuilder:
         except Exception:
             return
 
+        modified = False
+
+        # Strip images if requested
+        if self.strip_images:
+            modified = self._strip_images_from_tree(tree) or modified
+
         # Find and process translatable elements
         for xpath, translated_text in file_translations.items():
             try:
@@ -498,8 +551,12 @@ class BilingualEPUBBuilder:
                 if elements:
                     elem = elements[0]
                     self._wrap_bilingual(elem, translated_text)
+                    modified = True
             except Exception:
                 continue
+
+        if not modified:
+            return
 
         # Add CSS link to head
         self._add_css_link(tree)
@@ -507,6 +564,39 @@ class BilingualEPUBBuilder:
         # Write back
         output = etree.tostring(tree, encoding="unicode", xml_declaration=True)
         file_path.write_text(output, encoding="utf-8")
+
+    def _strip_images_from_tree(self, tree: etree._Element) -> bool:
+        """Remove all image elements from the XML tree.
+
+        Removes: img, figure, picture, svg, image elements
+
+        Args:
+            tree: lxml element tree root
+
+        Returns:
+            True if any elements were removed
+        """
+        removed = False
+
+        # Define tags to remove (with and without namespace)
+        image_tags = ["img", "figure", "picture", "svg", "image"]
+
+        for tag_name in image_tags:
+            # Try with XHTML namespace
+            for elem in tree.xpath(f"//x:{tag_name}", namespaces=XHTML_NSMAP):
+                parent = elem.getparent()
+                if parent is not None:
+                    parent.remove(elem)
+                    removed = True
+
+            # Try without namespace
+            for elem in tree.xpath(f"//{tag_name}"):
+                parent = elem.getparent()
+                if parent is not None:
+                    parent.remove(elem)
+                    removed = True
+
+        return removed
 
     def _find_by_xpath(self, tree, xpath):
         """Find elements by xpath (same as EPUBReconstructor)."""

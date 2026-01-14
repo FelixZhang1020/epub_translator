@@ -55,19 +55,34 @@ class TextOnlyEpubGenerator:
         )
         book.add_item(css)
 
-        # Create chapters
+        # Build chapter map for TOC navigation
+        chapter_map = {ch.id: ch for ch in content.chapters}
+
+        # Create all chapters and add to book
         epub_chapters = []
-        toc_items = []
+        epub_chapter_map = {}  # chapter_id -> EpubHtml
 
         for chapter in content.chapters:
             epub_chapter = self._create_chapter(chapter, mode, css)
             book.add_item(epub_chapter)
             epub_chapters.append(epub_chapter)
-            toc_items.append(epub.Link(
-                epub_chapter.file_name,
-                chapter.title or f"Chapter {chapter.chapter_number}",
-                epub_chapter.id,
-            ))
+            epub_chapter_map[chapter.id] = epub_chapter
+
+        # Build hierarchical TOC from content.toc structure
+        toc_items = self._build_hierarchical_toc(
+            content.toc, chapter_map, epub_chapter_map
+        )
+
+        # Fallback to flat TOC if hierarchical is empty
+        if not toc_items:
+            toc_items = [
+                epub.Link(
+                    epub_ch.file_name,
+                    ch.title or f"Chapter {ch.chapter_number}",
+                    epub_ch.id,
+                )
+                for ch, epub_ch in zip(content.chapters, epub_chapters)
+            ]
 
         # Set TOC and spine
         book.toc = toc_items
@@ -81,6 +96,53 @@ class TextOnlyEpubGenerator:
         output = BytesIO()
         epub.write_epub(output, book)
         return output.getvalue()
+
+    def _build_hierarchical_toc(
+        self, toc_entries, chapter_map, epub_chapter_map
+    ) -> list:
+        """Build hierarchical TOC for ePub from TOCEntry structure.
+
+        Args:
+            toc_entries: List of TOCEntry objects from content.toc
+            chapter_map: Dict mapping chapter_id to ExtractedChapter
+            epub_chapter_map: Dict mapping chapter_id to EpubHtml
+
+        Returns:
+            List of epub.Link or epub.Section items for book.toc
+        """
+        from app.core.export.text_extractor import TOCEntry
+
+        items = []
+        for entry in toc_entries:
+            epub_chapter = epub_chapter_map.get(entry.chapter_id)
+
+            if entry.children:
+                # Build children recursively
+                children = self._build_hierarchical_toc(
+                    entry.children, chapter_map, epub_chapter_map
+                )
+
+                if epub_chapter:
+                    # Section with content and children
+                    section_link = epub.Link(
+                        epub_chapter.file_name,
+                        entry.title,
+                        epub_chapter.id,
+                    )
+                    items.append((section_link, children))
+                elif children:  # Only add section if it has children
+                    # Section without content (parent only)
+                    items.append((epub.Section(entry.title), children))
+            else:
+                # Leaf entry
+                if epub_chapter:
+                    items.append(epub.Link(
+                        epub_chapter.file_name,
+                        entry.title,
+                        epub_chapter.id,
+                    ))
+
+        return items
 
     def _create_chapter(
         self,
@@ -107,6 +169,7 @@ class TextOnlyEpubGenerator:
         for para in chapter.paragraphs:
             html_parts.append(self._render_paragraph(para, mode))
 
+        # Content must be bytes for ebooklib's get_body_content() to work
         epub_chapter.content = f"""<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -117,7 +180,7 @@ class TextOnlyEpubGenerator:
 <body>
 {''.join(html_parts)}
 </body>
-</html>"""
+</html>""".encode('utf-8')
 
         return epub_chapter
 

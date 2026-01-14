@@ -20,6 +20,11 @@ interface Chapter {
     paragraph_count: number
 }
 
+interface ChapterStats {
+    translated: number
+    total: number
+}
+
 interface WorkflowChapterListProps {
     width: number
     toc?: TocItem[]
@@ -30,6 +35,12 @@ interface WorkflowChapterListProps {
     fontClasses: any
     title?: string
     className?: string
+    chapterStatsMap?: Map<string, ChapterStats>
+    // Multi-select checkbox mode props
+    showCheckboxes?: boolean
+    selectedChapterIds?: Set<string>
+    onSelectAll?: () => void
+    selectionText?: string
 }
 
 export function WorkflowChapterList({
@@ -42,6 +53,11 @@ export function WorkflowChapterList({
     fontClasses,
     title,
     className = '',
+    chapterStatsMap,
+    showCheckboxes = false,
+    selectedChapterIds,
+    onSelectAll,
+    selectionText,
 }: WorkflowChapterListProps) {
     const { t } = useTranslation()
     const [expandAll, setExpandAll] = useState(false)
@@ -60,19 +76,32 @@ export function WorkflowChapterList({
                         <h3 className={`font-medium text-gray-900 dark:text-gray-100 ${fontClasses.sm}`}>
                             {title || t('preview.chapterList')}
                         </h3>
-                        {toc && toc.length > 0 && (
-                            <button
-                                onClick={() => setExpandAll(!expandAll)}
-                                className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-                                title={expandAll ? t('preview.collapseAll') : t('preview.expandAll')}
-                            >
-                                {expandAll ? (
-                                    <ChevronsDownUp className="w-4 h-4" />
-                                ) : (
-                                    <ChevronsUpDown className="w-4 h-4" />
-                                )}
-                            </button>
-                        )}
+                        <div className="flex items-center gap-1">
+                            {/* Select all button - only in checkbox mode */}
+                            {showCheckboxes && onSelectAll && (
+                                <button
+                                    onClick={onSelectAll}
+                                    className={`text-blue-600 dark:text-blue-400 hover:underline ${fontClasses.xs}`}
+                                    title={selectionText}
+                                >
+                                    {selectionText}
+                                </button>
+                            )}
+                            {/* Expand/collapse button - always show when TOC exists */}
+                            {toc && toc.length > 0 && (
+                                <button
+                                    onClick={() => setExpandAll(!expandAll)}
+                                    className="p-1 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+                                    title={expandAll ? t('preview.collapseAll') : t('preview.expandAll')}
+                                >
+                                    {expandAll ? (
+                                        <ChevronsDownUp className="w-4 h-4" />
+                                    ) : (
+                                        <ChevronsUpDown className="w-4 h-4" />
+                                    )}
+                                </button>
+                            )}
+                        </div>
                     </div>
 
                     {hasContent ? (
@@ -83,8 +112,37 @@ export function WorkflowChapterList({
                                 onSelectChapter={onSelectChapter}
                                 fontClasses={fontClasses}
                                 expandAll={expandAll}
+                                showCheckboxes={showCheckboxes}
+                                selectedChapterIds={selectedChapterIds}
+                                chapterStatsMap={chapterStatsMap}
                             />
+                        ) : showCheckboxes ? (
+                            /* Checkbox mode fallback for flat chapters */
+                            <div className="space-y-0.5">
+                                {chapters?.map((chapter) => (
+                                    <label
+                                        key={chapter.id}
+                                        className={`flex items-center gap-2 px-1.5 py-1 rounded cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 ${fontClasses.paragraph} text-gray-700 dark:text-gray-300`}
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedChapterIds?.has(chapter.id) ?? false}
+                                            onChange={() => onSelectChapter(chapter.id)}
+                                            className="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="truncate flex-1">
+                                            {chapter.title || t('preview.chapterNumber', { number: String(chapter.chapter_number) })}
+                                        </span>
+                                        {chapterStatsMap?.has(chapter.id) && (
+                                            <span className={`${fontClasses.xs} text-gray-400 dark:text-gray-500`}>
+                                                {chapterStatsMap.get(chapter.id)!.translated} / {chapterStatsMap.get(chapter.id)!.total}
+                                            </span>
+                                        )}
+                                    </label>
+                                ))}
+                            </div>
                         ) : (
+                            /* Single-select mode fallback for flat chapters */
                             <div className="space-y-0.5">
                                 {chapters?.map((chapter) => (
                                     <button

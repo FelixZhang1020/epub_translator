@@ -91,8 +91,11 @@ class DirectTranslationStrategy(PromptStrategy):
             "target_language": context.target_language,
             "target_language_name": target_lang_name,
             "project": {
-                "title": "",
-                "author": "",
+                "title": context.project.title if context.project else "",
+                "author": context.project.author if context.project else "",
+            },
+            "derived": {
+                "has_analysis": False,
             },
         }
 
