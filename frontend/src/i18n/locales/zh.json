@@ -25,7 +25,8 @@
     "continue": "继续",
     "apply": "应用",
     "dismiss": "忽略",
-    "complete": "完成"
+    "complete": "完成",
+    "next": "下一步"
   },
   "app": {
     "title": "ePub 翻译工具"
@@ -209,6 +210,7 @@
     "typeYourQuestion": "输入你的问题或请求...",
     "suggestedTranslation": "建议译文",
     "applyTranslation": "应用",
+    "cannotApplyLocked": "无法应用：译文已锁定",
     "suggestionApplied": "已应用",
     "clearConversation": "清除历史",
     "messageFailed": "发送消息失败",
@@ -293,10 +295,8 @@
   },
   "proofreading": {
     "title": "校对审核",
-    "round": "轮次",
     "start": "开始校对",
     "startFailed": "启动校对失败",
-    "newRound": "新一轮校对",
     "noSession": "暂无校对记录",
     "noSessionHint": "开始校对流程以审核和改进翻译质量。",
     "inProgress": "校对进行中...",
@@ -322,8 +322,6 @@
     "modified": "已修改",
     "statusAccepted": "已接受",
     "statusRejected": "已拒绝",
-    "llmSuggestions": "AI 建议",
-    "allTranslations": "全部翻译",
     "selectAll": "全选",
     "deselectAll": "取消全选",
     "batchAccept": "批量接受",
@@ -354,7 +352,9 @@
     "askLLM": "推荐",
     "getRecommendation": "获取 LLM 推荐",
     "recommendedTranslation": "推荐翻译",
-    "applyRecommendation": "应用此推荐"
+    "applyRecommendation": "应用此推荐",
+    "proofreadingProgress": "校对进度",
+    "locked": "已锁定"
   },
   "export": {
     "title": "导出",
@@ -368,7 +368,7 @@
     "totalParagraphs": "总段落数",
     "chapters": "章节",
     "paragraphs": "段落",
-    "translationStatus": "翻译状态",
+    "translationStatus": "校对进度",
     "progress": "进度",
     "paragraphsTranslated": "段落已翻译",
     "readyToExport": "可以导出",
@@ -387,9 +387,10 @@
     "formatChineseOnly": "仅中文",
     "formatChineseOnlyDesc": "只保留翻译内容",
     "selectChapters": "选择章节",
-    "selectChaptersHint": "选择要导出的章节（不选则导出全部）",
+    "selectChaptersHint": "选择要包含在导出中的章节",
     "noChaptersToExport": "无章节可导出",
     "allChaptersSelected": "将导出所有章节",
+    "noChaptersSelected": "未选择章节",
     "chaptersSelected": "已选择 {{count}} 个章节",
     "showPreview": "显示预览",
     "hidePreview": "隐藏预览",
@@ -401,7 +402,8 @@
     "widthNarrow": "窄",
     "widthMedium": "中",
     "widthWide": "宽",
-    "widthFull": "全屏"
+    "widthFull": "全屏",
+    "exportFailed": "导出失败"
   },
   "prompts": {
     "title": "提示词预览",
@@ -439,7 +441,11 @@
     "notConfigured": "未配置",
     "systemModified": "系统提示词已修改",
     "userModified": "用户提示词已修改",
-    "projectUserPrompt": "项目用户提示词"
+    "projectUserPrompt": "项目用户提示词",
+    "placeholderSource": "（翻译时将提供源文本）",
+    "placeholderOriginal": "（校对时将提供原文）",
+    "placeholderTarget": "（将提供当前译文）",
+    "placeholderSamples": "（分析时将加载样本段落）"
   },
   "promptManagement": {
     "title": "提示词管理",

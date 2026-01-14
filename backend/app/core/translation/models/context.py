@@ -18,6 +18,16 @@ class TranslationMode(str, Enum):
     OPTIMIZATION = "optimization"  # Improve existing translation
 
 
+class ProjectMetadata(BaseModel):
+    """Project metadata for prompt context."""
+
+    title: str = Field(default="", description="Project/Book title")
+    author: str = Field(default="", description="Author name")
+    source_language: str = Field(default="en", description="Source language")
+    target_language: str = Field(default="zh", description="Target language")
+    author_background: Optional[str] = Field(default=None, description="Author background info")
+
+
 class SourceMaterial(BaseModel):
     """Content to be translated with metadata."""
 
@@ -249,6 +259,10 @@ class TranslationContext(BaseModel):
     )
     existing: Optional[ExistingTranslation] = Field(
         default=None, description="Existing translation for optimization mode"
+    )
+    # Project metadata for prompt context
+    project: Optional["ProjectMetadata"] = Field(
+        default=None, description="Project metadata (title, author, etc.)"
     )
 
     # Custom overrides

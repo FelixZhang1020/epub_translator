@@ -25,7 +25,8 @@
     "continue": "Continue",
     "apply": "Apply",
     "dismiss": "Dismiss",
-    "complete": "Complete"
+    "complete": "Complete",
+    "next": "Next"
   },
   "app": {
     "title": "ePub Translator"
@@ -209,6 +210,7 @@
     "typeYourQuestion": "Type your question or request...",
     "suggestedTranslation": "Suggested translation",
     "applyTranslation": "Apply",
+    "cannotApplyLocked": "Cannot apply: translation is locked",
     "suggestionApplied": "Applied",
     "clearConversation": "Clear History",
     "messageFailed": "Failed to send message",
@@ -293,9 +295,7 @@
   },
   "proofreading": {
     "title": "Proofreading",
-    "round": "Round",
     "start": "Start Proofreading",
-    "newRound": "New Round",
     "noSession": "No Proofreading Session",
     "noSessionHint": "Start a proofreading session to review and improve translations.",
     "inProgress": "Proofreading in progress...",
@@ -321,8 +321,6 @@
     "modified": "Modified",
     "statusAccepted": "Accepted",
     "statusRejected": "Rejected",
-    "llmSuggestions": "LLM Suggestions",
-    "allTranslations": "All Translations",
     "selectAll": "Select All",
     "deselectAll": "Deselect All",
     "batchAccept": "Accept Selected",
@@ -354,7 +352,9 @@
     "askLLM": "Recommend",
     "getRecommendation": "Get LLM recommendation",
     "recommendedTranslation": "Recommended Translation",
-    "applyRecommendation": "Apply this recommendation"
+    "applyRecommendation": "Apply this recommendation",
+    "proofreadingProgress": "Proofreading Progress",
+    "locked": "locked"
   },
   "export": {
     "title": "Export",
@@ -368,7 +368,7 @@
     "totalParagraphs": "Total Paragraphs",
     "chapters": "chapters",
     "paragraphs": "paragraphs",
-    "translationStatus": "Translation Status",
+    "translationStatus": "Confirmed Progress",
     "progress": "Progress",
     "paragraphsTranslated": "paragraphs translated",
     "readyToExport": "Ready to export",
@@ -387,9 +387,10 @@
     "formatChineseOnly": "Chinese Only",
     "formatChineseOnlyDesc": "Translation content only",
     "selectChapters": "Select Chapters",
-    "selectChaptersHint": "Choose chapters to export (empty = all)",
+    "selectChaptersHint": "Select chapters to include in export",
     "noChaptersToExport": "No chapters available to export",
     "allChaptersSelected": "All chapters will be exported",
+    "noChaptersSelected": "No chapters selected",
     "chaptersSelected": "{{count}} chapter(s) selected",
     "showPreview": "Show Preview",
     "hidePreview": "Hide Preview",
@@ -401,7 +402,8 @@
     "widthNarrow": "Narrow",
     "widthMedium": "Medium",
     "widthWide": "Wide",
-    "widthFull": "Full"
+    "widthFull": "Full",
+    "exportFailed": "Export failed"
   },
   "prompts": {
     "title": "Prompt Preview",
@@ -439,7 +441,11 @@
     "notConfigured": "Not Configured",
     "systemModified": "System Modified",
     "userModified": "User Modified",
-    "projectUserPrompt": "Project User Prompt"
+    "projectUserPrompt": "Project User Prompt",
+    "placeholderSource": "(Source text will be provided during translation)",
+    "placeholderOriginal": "(Original text will be provided during proofreading)",
+    "placeholderTarget": "(Current translation will be provided)",
+    "placeholderSamples": "(Sample paragraphs will be loaded during analysis)"
   },
   "promptManagement": {
     "title": "Prompt Management",

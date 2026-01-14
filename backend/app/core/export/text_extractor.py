@@ -139,25 +139,42 @@ class TextContentExtractor:
             .order_by(Chapter.chapter_number)
         )
 
-        if chapter_ids:
-            query = query.where(Chapter.id.in_(chapter_ids))
+        # Filter out empty strings and only apply filter if there are valid chapter IDs
+        valid_chapter_ids = [cid for cid in (chapter_ids or []) if cid]
+        if valid_chapter_ids:
+            query = query.where(Chapter.id.in_(valid_chapter_ids))
 
         result = await db.execute(query)
         chapters = result.scalars().all()
 
+        # Build chapter map for TOC
+        chapter_map = {c.id: c for c in chapters}
+        valid_chapter_ids = set(c.id for c in chapters)
+
         # Extract chapters
         extracted_chapters = []
-        toc_entries = []
-
         for chapter in chapters:
             extracted = self._extract_chapter(chapter, include_untranslated)
             if extracted.paragraphs:  # Only include chapters with content
                 extracted_chapters.append(extracted)
-                toc_entries.append(TOCEntry(
-                    title=chapter.title or f"Chapter {chapter.chapter_number}",
-                    chapter_id=chapter.id,
-                    level=0,
-                ))
+
+        # Build hierarchical TOC from project's stored structure
+        toc_entries = self._build_hierarchical_toc(
+            project.toc_structure,
+            chapter_map,
+            valid_chapter_ids,
+            level=0,
+        )
+
+        # If no stored TOC structure, create flat list
+        if not toc_entries:
+            for chapter in chapters:
+                if chapter.id in {ec.id for ec in extracted_chapters}:
+                    toc_entries.append(TOCEntry(
+                        title=chapter.title or f"Chapter {chapter.chapter_number}",
+                        chapter_id=chapter.id,
+                        level=0,
+                    ))
 
         return ExtractedContent(
             project_title=project.epub_title or project.name,
@@ -165,6 +182,53 @@ class TextContentExtractor:
             chapters=extracted_chapters,
             toc=toc_entries,
         )
+
+    def _build_hierarchical_toc(
+        self,
+        toc_items: Optional[list[dict]],
+        chapter_map: dict[str, "Chapter"],
+        valid_chapter_ids: set[str],
+        level: int = 0,
+    ) -> list[TOCEntry]:
+        """Build hierarchical TOC entries from stored TOC structure."""
+        if not toc_items:
+            return []
+
+        entries = []
+        for item in toc_items:
+            # Find matching chapter by href
+            href = item.get("href", "")
+            base_href = href.split("#")[0] if href else None
+
+            # Find chapter that matches this href
+            matching_chapter = None
+            for chapter in chapter_map.values():
+                if chapter.html_path == base_href:
+                    matching_chapter = chapter
+                    break
+
+            # Build children recursively
+            children = self._build_hierarchical_toc(
+                item.get("children", []),
+                chapter_map,
+                valid_chapter_ids,
+                level=level + 1,
+            )
+
+            # Include entry if it has a valid chapter or has children with content
+            chapter_id = matching_chapter.id if matching_chapter else None
+            has_valid_chapter = chapter_id and chapter_id in valid_chapter_ids
+            has_children = len(children) > 0
+
+            if has_valid_chapter or has_children:
+                entries.append(TOCEntry(
+                    title=item.get("title", "Untitled"),
+                    chapter_id=chapter_id or "",
+                    level=level,
+                    children=children,
+                ))
+
+        return entries
 
     def _extract_chapter(
         self,
@@ -228,7 +292,7 @@ class TextContentExtractor:
         content: ExtractedContent,
         mode: str = "bilingual",
     ) -> str:
-        """Render extracted content as clean HTML.
+        """Render extracted content as clean HTML with navigation sidebar.
 
         Args:
             content: Extracted content
@@ -242,6 +306,7 @@ class TextContentExtractor:
             "<html>",
             "<head>",
             '<meta charset="UTF-8">',
+            '<meta name="viewport" content="width=device-width, initial-scale=1.0">',
             f"<title>{html_escape(content.project_title)}</title>",
             "<style>",
             self._get_css(),
@@ -250,23 +315,31 @@ class TextContentExtractor:
             "<body>",
         ]
 
+        # Navigation sidebar
+        html_parts.append('<nav class="sidebar" id="sidebar">')
+        html_parts.append('<div class="sidebar-header">')
+        html_parts.append(f'<h3>{html_escape(content.project_title)}</h3>')
+        html_parts.append('<button class="sidebar-toggle" onclick="toggleSidebar()">&times;</button>')
+        html_parts.append('</div>')
+        html_parts.append('<ul class="nav-list">')
+        self._render_nav_entries(html_parts, content.toc)
+        html_parts.append('</ul>')
+        html_parts.append('</nav>')
+
+        # Toggle button for collapsed sidebar
+        html_parts.append('<button class="sidebar-open" id="sidebar-open" onclick="toggleSidebar()">')
+        html_parts.append('<span>&#9776;</span>')
+        html_parts.append('</button>')
+
+        # Main content
+        html_parts.append('<main class="content">')
+
         # Title page
         html_parts.append('<div class="title-page">')
         html_parts.append(f'<h1 class="book-title">{html_escape(content.project_title)}</h1>')
         if content.project_author:
             html_parts.append(f'<p class="book-author">{html_escape(content.project_author)}</p>')
         html_parts.append("</div>")
-
-        # Table of contents
-        html_parts.append('<nav class="toc">')
-        html_parts.append("<h2>Contents</h2>")
-        html_parts.append("<ul>")
-        for entry in content.toc:
-            html_parts.append(
-                f'<li><a href="#chapter-{entry.chapter_id}">{html_escape(entry.title)}</a></li>'
-            )
-        html_parts.append("</ul>")
-        html_parts.append("</nav>")
 
         # Chapters
         for chapter in content.chapters:
@@ -278,6 +351,13 @@ class TextContentExtractor:
                 html_parts.append(self._render_paragraph(para, mode))
 
             html_parts.append("</section>")
+
+        html_parts.append('</main>')
+
+        # JavaScript for navigation
+        html_parts.append('<script>')
+        html_parts.append(self._get_nav_script())
+        html_parts.append('</script>')
 
         html_parts.extend(["</body>", "</html>"])
 
@@ -302,22 +382,204 @@ class TextContentExtractor:
             parts.append("</div>")
             return "\n".join(parts)
 
+    def _render_nav_entries(self, html_parts: list[str], toc_entries: list[TOCEntry]) -> None:
+        """Render hierarchical navigation entries as nested HTML lists.
+
+        Args:
+            html_parts: List to append HTML strings to
+            toc_entries: List of TOCEntry objects to render
+        """
+        for entry in toc_entries:
+            html_parts.append('<li>')
+            # Only add link if entry has a chapter_id (some parent entries may not)
+            if entry.chapter_id:
+                html_parts.append(
+                    f'<a href="#chapter-{entry.chapter_id}" '
+                    f'class="nav-link" data-level="{entry.level}">'
+                    f'{html_escape(entry.title)}</a>'
+                )
+            else:
+                # Parent entry without chapter - render as non-clickable text
+                html_parts.append(
+                    f'<span class="nav-parent" data-level="{entry.level}">'
+                    f'{html_escape(entry.title)}</span>'
+                )
+
+            # Render children recursively
+            if entry.children:
+                html_parts.append('<ul class="nav-sublist">')
+                self._render_nav_entries(html_parts, entry.children)
+                html_parts.append('</ul>')
+
+            html_parts.append('</li>')
+
     def _get_css(self) -> str:
-        """Get minimal CSS for text-only exports."""
+        """Get CSS for text-only exports with navigation sidebar."""
         return """
+* {
+    box-sizing: border-box;
+}
+
 body {
     font-family: Georgia, "Noto Serif SC", serif;
     line-height: 1.8;
-    max-width: 45em;
-    margin: 0 auto;
-    padding: 2em;
+    margin: 0;
+    padding: 0;
     color: #333;
+    display: flex;
+}
+
+/* Sidebar Navigation */
+.sidebar {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 280px;
+    height: 100vh;
+    background: #f8f9fa;
+    border-right: 1px solid #e0e0e0;
+    overflow-y: auto;
+    z-index: 1000;
+    transition: transform 0.3s ease;
+}
+
+.sidebar.collapsed {
+    transform: translateX(-100%);
+}
+
+.sidebar-header {
+    position: sticky;
+    top: 0;
+    background: #f8f9fa;
+    padding: 1em;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-header h3 {
+    margin: 0;
+    font-size: 1em;
+    color: #333;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+}
+
+.sidebar-toggle {
+    background: none;
+    border: none;
+    font-size: 1.5em;
+    cursor: pointer;
+    color: #666;
+    padding: 0 0.25em;
+}
+
+.sidebar-toggle:hover {
+    color: #333;
+}
+
+.nav-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-list li {
+    border-bottom: 1px solid #eee;
+}
+
+.nav-link, .nav-parent {
+    display: block;
+    padding: 0.75em 1em;
+    color: #555;
+    text-decoration: none;
+    font-size: 0.9em;
+    transition: background 0.2s;
+}
+
+.nav-parent {
+    font-weight: 600;
+    color: #333;
+}
+
+.nav-link:hover {
+    background: #e9ecef;
+    color: #333;
+}
+
+.nav-link.active {
+    background: #e3f2fd;
+    color: #1976d2;
+    border-left: 3px solid #1976d2;
+}
+
+/* Nested navigation for hierarchy */
+.nav-sublist {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.nav-sublist li {
+    border-bottom: 1px solid #f5f5f5;
+}
+
+.nav-sublist .nav-link, .nav-sublist .nav-parent {
+    padding-left: 2em;
+    font-size: 0.85em;
+}
+
+.nav-sublist .nav-sublist .nav-link, .nav-sublist .nav-sublist .nav-parent {
+    padding-left: 3em;
+    font-size: 0.8em;
+}
+
+.nav-sublist .nav-sublist .nav-sublist .nav-link {
+    padding-left: 4em;
+    font-size: 0.75em;
+}
+
+/* Sidebar open button (when collapsed) */
+.sidebar-open {
+    position: fixed;
+    left: 10px;
+    top: 10px;
+    z-index: 999;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px 12px;
+    cursor: pointer;
+    font-size: 1.2em;
+    display: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sidebar-open.visible {
+    display: block;
+}
+
+/* Main content */
+.content {
+    flex: 1;
+    margin-left: 280px;
+    max-width: 50em;
+    padding: 2em 3em;
+    transition: margin-left 0.3s ease;
+}
+
+.content.expanded {
+    margin-left: 0;
 }
 
 .title-page {
     text-align: center;
     margin: 4em 0;
-    page-break-after: always;
+    padding-bottom: 2em;
+    border-bottom: 2px solid #eee;
 }
 
 .book-title {
@@ -330,40 +592,15 @@ body {
     color: #666;
 }
 
-.toc {
-    margin: 2em 0;
-    page-break-after: always;
-}
-
-.toc h2 {
-    margin-bottom: 1em;
-}
-
-.toc ul {
-    list-style: none;
-    padding: 0;
-}
-
-.toc li {
-    margin: 0.5em 0;
-}
-
-.toc a {
-    color: #333;
-    text-decoration: none;
-}
-
-.toc a:hover {
-    text-decoration: underline;
-}
-
 .chapter {
     margin: 2em 0;
-    page-break-before: always;
+    padding-top: 1em;
 }
 
 .chapter h2 {
     margin-bottom: 1.5em;
+    padding-bottom: 0.5em;
+    border-bottom: 1px solid #eee;
 }
 
 .bilingual-pair {
@@ -400,14 +637,112 @@ blockquote {
     color: #555;
 }
 
+/* Responsive */
+@media (max-width: 900px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    .sidebar.open {
+        transform: translateX(0);
+    }
+    .sidebar-open {
+        display: block;
+    }
+    .content {
+        margin-left: 0;
+        padding: 1em;
+    }
+}
+
 @media print {
-    body {
+    .sidebar, .sidebar-open {
+        display: none !important;
+    }
+    .content {
+        margin-left: 0;
         max-width: none;
         padding: 0;
     }
-
     .chapter {
         page-break-before: always;
     }
 }
+"""
+
+    def _get_nav_script(self) -> str:
+        """Get JavaScript for navigation functionality."""
+        return """
+// Toggle sidebar visibility
+function toggleSidebar() {
+    var sidebar = document.getElementById('sidebar');
+    var content = document.querySelector('.content');
+    var openBtn = document.getElementById('sidebar-open');
+
+    sidebar.classList.toggle('collapsed');
+    content.classList.toggle('expanded');
+    openBtn.classList.toggle('visible');
+}
+
+// Build a map of chapter IDs to their nav links for quick lookup
+var navLinkMap = {};
+document.querySelectorAll('.nav-link').forEach(function(link) {
+    var href = link.getAttribute('href');
+    if (href && href.startsWith('#chapter-')) {
+        var chapterId = href.substring(9); // Remove '#chapter-'
+        navLinkMap[chapterId] = link;
+    }
+});
+
+// Highlight active chapter on scroll
+function highlightActiveChapter() {
+    var chapters = document.querySelectorAll('.chapter');
+    var scrollPos = window.scrollY + 100;
+    var activeChapterId = null;
+
+    chapters.forEach(function(chapter) {
+        var rect = chapter.getBoundingClientRect();
+        var top = rect.top + window.scrollY;
+        var bottom = top + rect.height;
+
+        if (scrollPos >= top && scrollPos < bottom) {
+            // Extract chapter ID from element ID (format: "chapter-{id}")
+            var id = chapter.getAttribute('id');
+            if (id && id.startsWith('chapter-')) {
+                activeChapterId = id.substring(8);
+            }
+        }
+    });
+
+    // Update active state using the map
+    document.querySelectorAll('.nav-link').forEach(function(link) {
+        link.classList.remove('active');
+    });
+
+    if (activeChapterId && navLinkMap[activeChapterId]) {
+        navLinkMap[activeChapterId].classList.add('active');
+        // Scroll nav item into view if needed
+        navLinkMap[activeChapterId].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+}
+
+// Smooth scroll to chapter when clicking nav link
+document.querySelectorAll('.nav-link').forEach(function(link) {
+    link.addEventListener('click', function(e) {
+        e.preventDefault();
+        var targetId = this.getAttribute('href').substring(1);
+        var target = document.getElementById(targetId);
+        if (target) {
+            target.scrollIntoView({ behavior: 'smooth' });
+            // Update active state
+            document.querySelectorAll('.nav-link').forEach(function(l) { l.classList.remove('active'); });
+            this.classList.add('active');
+        }
+    });
+});
+
+// Listen for scroll events
+window.addEventListener('scroll', highlightActiveChapter);
+
+// Initial highlight
+highlightActiveChapter();
 """

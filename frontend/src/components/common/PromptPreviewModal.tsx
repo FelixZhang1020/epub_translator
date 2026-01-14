@@ -152,25 +152,31 @@ export function PromptPreviewModal({
   const [userPromptEdited, setUserPromptEdited] = useState('')
   const [userPromptRendered, setUserPromptRendered] = useState('')
 
-  // Fetch available templates (for system prompt only)
+  // Fetch available templates (for system prompt only) - cache indefinitely
   const { data: templatesData, isLoading: templatesLoading } = useQuery({
     queryKey: ['prompt-templates', promptType],
     queryFn: () => api.getPromptTemplates(promptType),
     enabled: isOpen,
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60, // Keep in cache for 1 hour
   })
 
-  // Fetch default template name
+  // Fetch default template name - cache indefinitely
   const { data: defaultData } = useQuery({
     queryKey: ['prompt-default', promptType],
     queryFn: () => api.getDefaultTemplate(promptType),
     enabled: isOpen,
+    staleTime: Infinity,
+    gcTime: 1000 * 60 * 60,
   })
 
-  // Fetch project-resolved prompts (for user prompt)
+  // Fetch project-resolved prompts (for user prompt) - cache for 10 minutes
   const { data: projectPromptsData, isLoading: projectPromptsLoading } = useQuery({
     queryKey: ['project-resolved-prompts', projectId, promptType],
     queryFn: () => api.getProjectResolvedPrompts(projectId!, promptType),
     enabled: isOpen && !!projectId,
+    staleTime: 1000 * 60 * 10, // 10 minutes - project prompts may change
+    gcTime: 1000 * 60 * 30,
   })
 
   // Preview mutation

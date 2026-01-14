@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate, useOutletContext } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Play, Check, RefreshCw, ArrowRight, BookOpen, FileText } from 'lucide-react'
+import { Loader2, Play, RefreshCw, ArrowRight, BookOpen } from 'lucide-react'
 import { api, Project, WorkflowStatus, AnalysisProgressEvent } from '../../services/api/client'
-import { useTranslation, useAppStore, fontSizeClasses } from '../../stores/appStore'
+import { useTranslation, useAppStore } from '../../stores/appStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { PromptPreviewModal } from '../../components/common/PromptPreviewModal'
+import { PromptTemplateSelector } from '../../components/common/PromptTemplateSelector'
 import { LLMConfigSelector } from '../../components/common/LLMConfigSelector'
 import { AnalysisFieldCard } from '../../components/workflow/AnalysisFieldCard'
 import { AnalysisStreamingPreview } from '../../components/workflow/AnalysisStreamingPreview'
@@ -58,15 +58,12 @@ export function AnalysisPage() {
   // Global analyzing state for header display
   const setGlobalIsAnalyzing = useAppStore((state) => state.setIsAnalyzing)
 
-  // Font size from app store
-  const fontSize = useAppStore((state) => state.fontSize)
-  const fontClasses = fontSizeClasses[fontSize]
-
   // Form state - stores the raw_analysis as editable form data
   const [formData, setFormData] = useState<Record<string, unknown>>({})
 
-  // Prompt preview state
-  const [showPromptPreview, setShowPromptPreview] = useState(false)
+  // Custom prompts from template selector (used when user edits in modal)
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string | undefined>()
+  const [customUserPrompt, setCustomUserPrompt] = useState<string | undefined>()
 
   // Streaming state
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -163,15 +160,18 @@ export function AnalysisPage() {
     abortRef.current = stream
   }, [projectId, configId, queryClient, refetchWorkflow])
 
-  // Handler for prompt confirmation
+  // Handler for prompt confirmation from the selector modal
   const handlePromptConfirm = (systemPrompt?: string, userPrompt?: string) => {
-    setShowPromptPreview(false)
+    // Store custom prompts
+    setCustomSystemPrompt(systemPrompt)
+    setCustomUserPrompt(userPrompt)
+    // Start analysis with custom prompts
     startAnalysisStream(systemPrompt, userPrompt)
   }
 
-  // Open prompt preview instead of directly starting analysis
+  // Start analysis with current prompts
   const handleAnalyzeClick = () => {
-    setShowPromptPreview(true)
+    startAnalysisStream(customSystemPrompt, customUserPrompt)
   }
 
   // Cancel analysis
@@ -243,10 +243,6 @@ export function AnalysisPage() {
     }
   }
 
-  const handleContinue = () => {
-    navigate(`/project/${projectId}/translate`)
-  }
-
   // Check if analysis has actual content (not just an empty record)
   const hasAnalysisContent = analysis?.raw_analysis &&
     Object.keys(analysis.raw_analysis).length > 0
@@ -258,37 +254,37 @@ export function AnalysisPage() {
   )
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-2">
       {/* Action Bar - unified format */}
       <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center justify-between">
-          {/* Left side: Title */}
-          <div className="flex items-center gap-3">
-            <h2 className={`font-semibold text-gray-900 dark:text-gray-100 ${fontClasses.heading}`}>
-              {t('workflow.analysis')}
-            </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Left Group: LLM + Prompt (no Back - first stage) */}
+          <div className="flex items-center gap-2">
+            <LLMConfigSelector />
+            <PromptTemplateSelector
+              promptType="analysis"
+              projectId={projectId}
+              variables={{
+                'project.title': project?.epub_title || project?.name || '',
+                'project.author': project?.epub_author || '',
+                'content.sample_paragraphs': t('prompts.placeholderSamples'),
+              }}
+              disabled={!hasLLMConfig}
+              onConfirm={handlePromptConfirm}
+              isLoading={isAnalyzing}
+            />
           </div>
 
-          {/* Right side: All action buttons */}
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Right Group: Actions + Next */}
           <div className="flex items-center gap-2">
-            {/* LLM Config selector */}
-            <LLMConfigSelector />
-
-            {/* View prompt button */}
-            <button
-              onClick={() => setShowPromptPreview(true)}
-              disabled={!hasLLMConfig}
-              className="flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-sm"
-            >
-              <FileText className="w-4 h-4" />
-              {t('prompts.viewPrompt')}
-            </button>
-
             {/* Analyze/Cancel button */}
             {isAnalyzing ? (
               <button
                 onClick={handleCancelAnalysis}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-colors"
               >
                 {t('common.cancel')}
               </button>
@@ -296,47 +292,32 @@ export function AnalysisPage() {
               <button
                 onClick={handleAnalyzeClick}
                 disabled={!hasLLMConfig || isAnalyzing}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
               >
                 {hasAnalysis ? (
                   <RefreshCw className="w-4 h-4" />
                 ) : (
                   <Play className="w-4 h-4" />
                 )}
-                {hasAnalysis ? t('analysis.reanalyze') : t('analysis.startAnalysis')}
+                <span className="hidden sm:inline">
+                  {hasAnalysis ? t('analysis.reanalyze') : t('analysis.startAnalysis')}
+                </span>
               </button>
             )}
 
-            {/* Confirm button - only when has analysis */}
-            {hasAnalysis && (
-              <button
-                onClick={handleConfirm}
-                disabled={isSaving || analysis?.user_confirmed}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm ${
-                  analysis?.user_confirmed
-                    ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300 cursor-default'
-                    : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50'
-                }`}
-              >
-                {isSaving ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Check className="w-4 h-4" />
-                )}
-                {analysis?.user_confirmed ? t('analysis.confirmed') : t('analysis.confirmAnalysis')}
-              </button>
-            )}
-
-            {/* Continue button - only when confirmed */}
-            {analysis?.user_confirmed && (
-              <button
-                onClick={handleContinue}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-              >
-                {t('workflow.continueToTranslation')}
+            {/* Next button - confirms & navigates */}
+            <button
+              onClick={handleConfirm}
+              disabled={!hasAnalysis || isSaving || isAnalyzing}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+            >
+              {isSaving ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
                 <ArrowRight className="w-4 h-4" />
-              </button>
-            )}
+              )}
+              <span className="hidden sm:inline">{t('common.next')}</span>
+            </button>
           </div>
         </div>
 
@@ -428,25 +409,6 @@ export function AnalysisPage() {
         )
       )}
 
-      {/* Prompt Preview Modal */}
-      <PromptPreviewModal
-        isOpen={showPromptPreview}
-        onClose={() => setShowPromptPreview(false)}
-        promptType="analysis"
-        projectId={projectId}
-        variables={{
-          // Simple keys for backwards compatibility
-          title: project?.epub_title || project?.name || '',
-          author: project?.epub_author || '',
-          sample_paragraphs: '(Sample paragraphs will be loaded during analysis)',
-          // Namespaced keys (canonical format)
-          'project.title': project?.epub_title || project?.name || '',
-          'project.author': project?.epub_author || '',
-          'content.sample_paragraphs': '(Sample paragraphs will be loaded during analysis)',
-        }}
-        onConfirm={handlePromptConfirm}
-        isLoading={isAnalyzing}
-      />
     </div>
   )
 }

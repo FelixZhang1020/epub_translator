@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react'
-import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen } from 'lucide-react'
+import { ChevronRight, ChevronDown, FileText, Folder, FolderOpen, Circle, CheckCircle2, CircleDot } from 'lucide-react'
 import { TocItem } from '../../services/api/client'
 import { useTranslation } from '../../stores/appStore'
 
@@ -252,38 +252,22 @@ function TocNode({
           <span className="flex-shrink-0 w-[18px]" /> // Spacer for alignment (matches button width)
         ) : null}
 
-        {/* Checkbox or spacer for alignment */}
+        {/* Custom checkbox icon or spacer for alignment */}
         {showCheckboxes && (
           (isClickable || hasChildren) ? (
-            <input
-              type="checkbox"
-              checked={
-                item.chapter_id
-                  ? selectedChapterIds?.has(item.chapter_id) || false
-                  : allChildrenSelected
-              }
-              ref={(el) => {
-                if (el) {
-                  el.indeterminate = hasChildren && someChildrenSelected
-                }
-              }}
-              onChange={(e) => {
+            <button
+              onClick={(e) => {
                 e.stopPropagation()
                 if (hasChildren) {
                   // Node with children - toggle all descendants
-                  // If ANY children are selected (all or some), deselect all
-                  // If NO children are selected, select all
                   const anyChildrenSelected = childChapterIds.some(id => selectedChapterIds?.has(id))
-
                   if (anyChildrenSelected) {
-                    // Deselect all descendants
                     childChapterIds.forEach(id => {
                       if (selectedChapterIds?.has(id)) {
                         onSelectChapter(id)
                       }
                     })
                   } else {
-                    // Select all descendants
                     childChapterIds.forEach(id => {
                       if (!selectedChapterIds?.has(id)) {
                         onSelectChapter(id)
@@ -291,15 +275,21 @@ function TocNode({
                     })
                   }
                 } else if (item.chapter_id) {
-                  // Leaf node with no children - just toggle this chapter
                   onSelectChapter(item.chapter_id)
                 }
               }}
-              className="flex-shrink-0 mr-2 rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500"
-            />
+              className="flex-shrink-0 mr-1.5 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+            >
+              {hasChildren && someChildrenSelected ? (
+                <CircleDot className="w-4 h-4 text-blue-500" />
+              ) : (item.chapter_id ? selectedChapterIds?.has(item.chapter_id) : allChildrenSelected) ? (
+                <CheckCircle2 className="w-4 h-4 text-blue-500" />
+              ) : (
+                <Circle className="w-4 h-4 text-gray-400 dark:text-gray-500" />
+              )}
+            </button>
           ) : (
-            // Invisible spacer to maintain alignment when no checkbox
-            <span className="flex-shrink-0 w-[16px] mr-2" />
+            <span className="flex-shrink-0 w-5 mr-1.5" />
           )
         )}
 

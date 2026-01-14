@@ -104,7 +104,11 @@ class EPUBGenerator:
         return output_path
 
     async def _generate_bilingual_chapter(
-        self, chapter: Chapter, embed_images: bool = False, image_map: Optional[Dict[str, str]] = None
+        self,
+        chapter: Chapter,
+        embed_images: bool = False,
+        image_map: Optional[Dict[str, str]] = None,
+        filter_copyright: bool = False,
     ) -> str:
         """Generate bilingual HTML content for a chapter.
 
@@ -112,6 +116,7 @@ class EPUBGenerator:
             chapter: The chapter to process
             embed_images: If True, convert images to base64 data URLs (for preview)
             image_map: Pre-loaded map of image paths to base64 data URLs
+            filter_copyright: If True, only include proofreadable paragraphs
         """
         # Parse original HTML
         soup = BeautifulSoup(chapter.original_html or "", "lxml")
@@ -156,8 +161,13 @@ class EPUBGenerator:
             pass
 
         # Build paragraph lookup by text (for matching)
+        # When filter_copyright is True, only include proofreadable paragraphs
         para_translations = {}
+        proofreadable_texts = set()
         for para in chapter.paragraphs:
+            if filter_copyright and not para.is_proofreadable:
+                continue
+            proofreadable_texts.add(para.original_text)
             latest = para.latest_translation
             if latest:
                 para_translations[para.original_text] = latest.translated_text
@@ -169,6 +179,12 @@ class EPUBGenerator:
 
                 # Skip empty tags
                 if not original_text:
+                    continue
+
+                # Skip non-proofreadable content when filter_copyright is enabled
+                if filter_copyright and original_text not in proofreadable_texts:
+                    # Remove the tag entirely (copyright/image caption content)
+                    tag.decompose()
                     continue
 
                 # Check if we have a translation for this paragraph
@@ -320,12 +336,20 @@ class EPUBGenerator:
 
         return image_map
 
-    async def generate_preview(self, chapter_id: Optional[str] = None, width: str = "medium") -> str:
+    async def generate_preview(
+        self,
+        chapter_id: Optional[str] = None,
+        width: str = "medium",
+        strip_images: bool = False,
+        filter_copyright: bool = False,
+    ) -> str:
         """Generate HTML preview of bilingual content.
 
         Args:
             chapter_id: Optional chapter ID to preview specific chapter
             width: Content width option (narrow/medium/wide/full)
+            strip_images: If True, remove all images from the preview
+            filter_copyright: If True, filter out non-proofreadable paragraphs
         """
         # Load project to get the original EPUB path
         result = await self.db.execute(
@@ -333,9 +357,9 @@ class EPUBGenerator:
         )
         project = result.scalar_one_or_none()
 
-        # Load images from original EPUB for preview
+        # Load images from original EPUB for preview (unless stripping)
         image_map: Dict[str, str] = {}
-        if project and project.original_file_path:
+        if not strip_images and project and project.original_file_path:
             image_map = await self._load_images_from_epub(project.original_file_path)
 
         if chapter_id:
@@ -369,12 +393,35 @@ class EPUBGenerator:
         ]
 
         for chapter in chapters:
-            html_parts.append(
-                await self._generate_bilingual_chapter(chapter, embed_images=True, image_map=image_map)
+            chapter_html = await self._generate_bilingual_chapter(
+                chapter,
+                embed_images=not strip_images,
+                image_map=image_map,
+                filter_copyright=filter_copyright,
             )
+            # Strip images from HTML if requested
+            if strip_images:
+                chapter_html = self._strip_images_from_html(chapter_html)
+            html_parts.append(chapter_html)
 
         html_parts.append("</body></html>")
         return "\n".join(html_parts)
+
+    def _strip_images_from_html(self, html: str) -> str:
+        """Remove all image elements from HTML content.
+
+        Removes: <img>, <figure>, <svg>, <image>, <picture> tags
+        """
+        import re
+        # Remove <img> tags (self-closing or not)
+        html = re.sub(r'<img[^>]*/?>', '', html, flags=re.IGNORECASE | re.DOTALL)
+        # Remove <figure> tags with content
+        html = re.sub(r'<figure[^>]*>.*?</figure>', '', html, flags=re.IGNORECASE | re.DOTALL)
+        # Remove <picture> tags with content
+        html = re.sub(r'<picture[^>]*>.*?</picture>', '', html, flags=re.IGNORECASE | re.DOTALL)
+        # Remove <svg> tags with content
+        html = re.sub(r'<svg[^>]*>.*?</svg>', '', html, flags=re.IGNORECASE | re.DOTALL)
+        return html
 
     def _get_bilingual_css(self, width: str = "medium") -> bytes:
         """Get CSS styles for bilingual layout.
@@ -394,7 +441,7 @@ class EPUBGenerator:
         css = f"""
         body {{
             max-width: {max_width};
-            margin: 0 auto;
+            margin: 0;
             padding: 1em 2em;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             line-height: 1.6;

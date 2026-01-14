@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { Outlet, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ArrowLeft, Loader2, Settings } from 'lucide-react'
+import { Loader2, Settings, FileCheck, ScanSearch, Languages, Download } from 'lucide-react'
 import { api } from '../../services/api/client'
-import { useTranslation, useAppStore } from '../../stores/appStore'
+import { useTranslation, useAppStore, fontSizeClasses } from '../../stores/appStore'
 
 // Map database step name to URL path
 const getRoutePathFromStep = (step: string): string => {
@@ -68,6 +68,32 @@ export function ProjectLayout() {
   const effectiveWorkflowStatus = isTranslating && activeWorkflowStatus ? activeWorkflowStatus : workflowStatus
   const effectiveTranslationProgress = effectiveWorkflowStatus?.translation_progress
   const effectiveIsTranslating = effectiveTranslationProgress?.status === 'processing' || effectiveTranslationProgress?.status === 'pending'
+
+  // Fetch chapters for progress calculation
+  const { data: chapters } = useQuery({
+    queryKey: ['chapters', projectId],
+    queryFn: () => api.getChapters(projectId!),
+    enabled: !!projectId,
+    refetchInterval: 10000, // Refresh every 10 seconds
+  })
+
+  // Calculate progress based on chapters data
+  const { translatedCount, confirmedCount, totalParagraphs } = useMemo(() => {
+    if (!chapters) return { translatedCount: 0, confirmedCount: 0, totalParagraphs: 0 }
+    let translated = 0
+    let confirmed = 0
+    let total = 0
+    for (const chapter of chapters) {
+      translated += chapter.translated_count
+      confirmed += chapter.confirmed_count
+      total += chapter.paragraph_count
+    }
+    return { translatedCount: translated, confirmedCount: confirmed, totalParagraphs: total }
+  }, [chapters])
+
+  // Get font size
+  const fontSize = useAppStore((state) => state.fontSize)
+  const fontClasses = fontSizeClasses[fontSize]
 
   // Update current step when URL changes
   useEffect(() => {
@@ -177,6 +203,26 @@ export function ProjectLayout() {
     }
   }, [setTranslationProgress, setWorkflowStatus])
 
+  // Check if on workflow pages that need full-width/full-height layout
+  // These must be defined before early returns to maintain hooks order
+  const isAnalysisPage = location.pathname.includes('/analysis')
+  const isTranslatePage = location.pathname.includes('/translate')
+  const isProofreadPage = location.pathname.includes('/proofread')
+  const isExportPage = location.pathname.includes('/export')
+  // All workflow pages use full width
+  const isWideLayout = isAnalysisPage || isTranslatePage || isProofreadPage || isExportPage
+  // Only translate/proofread/export need fixed height viewport
+  const isFixedHeightPage = isTranslatePage || isProofreadPage || isExportPage
+
+  // Get current stage info for display (must be before early returns)
+  const currentStageInfo = useMemo(() => {
+    if (isAnalysisPage) return { icon: ScanSearch, label: t('workflow.analysis') }
+    if (isTranslatePage) return { icon: Languages, label: t('workflow.translation') }
+    if (isProofreadPage) return { icon: FileCheck, label: t('workflow.proofreading') }
+    if (isExportPage) return { icon: Download, label: t('workflow.export') }
+    return { icon: ScanSearch, label: t('workflow.analysis') }
+  }, [isAnalysisPage, isTranslatePage, isProofreadPage, isExportPage, t])
+
   if (projectLoading || statusLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -204,51 +250,72 @@ export function ProjectLayout() {
     )
   }
 
-  // Check if on translate page for wider layout
-  const isTranslatePage = location.pathname.includes('/translate')
-  // Check if on export page for full-height layout
-  const isExportPage = location.pathname.includes('/export')
-
   return (
-    <div className={isTranslatePage || isExportPage ? 'w-full h-full flex flex-col' : 'max-w-6xl mx-auto'}>
-      {/* Header - unified format for all pages */}
-      <div className={isTranslatePage || isExportPage ? 'mb-2 flex-shrink-0' : 'mb-6'}>
-        {/* Breadcrumb - consistent across all pages */}
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 mb-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          {t('nav.home')}
-        </button>
-
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-                {project.name}
-              </h1>
-              {project.author && (
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
-                  {t('common.by')} {project.author}
-                </p>
-              )}
-            </div>
-            <button
-              onClick={() => navigate(`/project/${projectId}/parameters`)}
-              className="ml-3 p-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
-              title={t('parameterReview.title')}
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+    <div className={isWideLayout ? `w-full ${isFixedHeightPage ? 'h-full flex flex-col' : ''}` : 'max-w-6xl mx-auto'}>
+      {/* Header - compact single line */}
+      <div className={isFixedHeightPage ? 'mb-2 flex-shrink-0' : 'mb-2'}>
+        <div className="flex items-center gap-3">
+          {/* Stage Badge */}
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-gray-100 dark:bg-gray-700/50">
+            <currentStageInfo.icon className="w-4 h-4 text-gray-600 dark:text-gray-300" />
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+              {currentStageInfo.label}
+            </span>
           </div>
+
+          {/* Divider */}
+          <div className="h-5 w-px bg-gray-300 dark:bg-gray-600" />
+
+          {/* Book info */}
+          <div className="flex items-center gap-2">
+            <h1 className="text-lg font-bold text-gray-900 dark:text-gray-100">
+              {project.name}
+            </h1>
+            {project.author && (
+              <span className="text-gray-500 dark:text-gray-400">
+                - {project.author}
+              </span>
+            )}
+          </div>
+
+          {/* Settings button */}
+          <button
+            onClick={() => navigate(`/project/${projectId}/parameters`)}
+            className="p-1.5 text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-700 rounded transition-colors"
+            title={t('parameterReview.title')}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+
+          {/* Progress indicator - show on translate/proofread/export pages */}
+          {isFixedHeightPage && totalParagraphs > 0 && (
+            <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-gray-100 dark:bg-gray-700/50 rounded-lg">
+              <div className="w-20">
+                <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-1.5">
+                  <div
+                    className={`h-1.5 rounded-full transition-all ${
+                      (isTranslatePage ? translatedCount : confirmedCount) === totalParagraphs
+                        ? 'bg-green-500'
+                        : 'bg-blue-600'
+                    }`}
+                    style={{
+                      width: `${Math.round(((isTranslatePage ? translatedCount : confirmedCount) / totalParagraphs) * 100)}%`
+                    }}
+                  />
+                </div>
+              </div>
+              <span className={`font-medium text-gray-600 dark:text-gray-300 ${fontClasses.xs} whitespace-nowrap`}>
+                {isTranslatePage ? translatedCount : confirmedCount} / {totalParagraphs}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Page Content */}
-      <div className={`${isTranslatePage || isExportPage
+      <div className={`${isFixedHeightPage
           ? 'flex-1 min-h-0 overflow-hidden'
-          : 'mt-8'
+          : ''
         }`}>
         <Outlet context={{ project, workflowStatus: effectiveWorkflowStatus, refetchWorkflow }} />
       </div>

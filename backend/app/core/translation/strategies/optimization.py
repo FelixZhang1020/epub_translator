@@ -89,6 +89,10 @@ class OptimizationStrategy(PromptStrategy):
             },
             "source_text": context.source.text,
             "existing_translation": context.existing.text if context.existing else "",
+            "project": {
+                "title": context.project.title if context.project else "",
+                "author": context.project.author if context.project else "",
+            },
             "derived": {},
         }
 

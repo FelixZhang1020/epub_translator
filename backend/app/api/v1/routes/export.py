@@ -79,12 +79,68 @@ async def export_bilingual_epub(
 @router.get("/export/{project_id}/preview")
 async def preview_export(
     project: ValidatedProject,
-    chapter_id: str = None,
+    chapter_id: Optional[str] = None,
+    chapter_ids: Optional[List[str]] = Query(default=None),
     db: AsyncSession = Depends(get_db),
 ):
-    """Preview exported content (HTML format)."""
+    """Preview exported content (HTML format).
+
+    This preview filters out copyright content and removes images
+    to comply with copyright requirements.
+    
+    Args:
+        chapter_id: Single chapter ID for ePub-style single chapter preview
+        chapter_ids: Multiple chapter IDs for PDF/HTML-style filtered preview
+    """
     generator = EPUBGenerator(project.id, db)
-    html_content = await generator.generate_preview(chapter_id)
+    
+    # If single chapter_id is specified, use it directly
+    if chapter_id:
+        html_content = await generator.generate_preview(
+            chapter_id,
+            strip_images=True,
+            filter_copyright=True,
+        )
+        return {"html": html_content}
+    
+    # If multiple chapter_ids specified, generate HTML for each and combine
+    if chapter_ids:
+        html_parts = []
+        for ch_id in chapter_ids:
+            chapter_html = await generator.generate_preview(
+                ch_id,
+                strip_images=True,
+                filter_copyright=True,
+            )
+            # Extract body content to avoid multiple html/head tags
+            if '<body>' in chapter_html and '</body>' in chapter_html:
+                body_start = chapter_html.index('<body>') + 6
+                body_end = chapter_html.index('</body>')
+                html_parts.append(chapter_html[body_start:body_end])
+            else:
+                html_parts.append(chapter_html)
+        
+        # Wrap in full HTML structure
+        css = generator._get_bilingual_css().decode("utf-8")
+        html_content = f"""<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{project.name} - Preview</title>
+    <style>{css}</style>
+</head>
+<body>
+    {''.join(html_parts)}
+</body>
+</html>"""
+        return {"html": html_content}
+    
+    # No chapter filter - generate all chapters preview
+    html_content = await generator.generate_preview(
+        strip_images=True,
+        filter_copyright=True,
+    )
 
     return {"html": html_content}
 
@@ -171,6 +227,7 @@ async def export_epub_v2(
                 original_epub=original_path,
                 translations=translations,
                 target_language=target_language,
+                strip_images=True,  # Remove images for copyright compliance
             )
             reconstructor.build(output_path)
             filename = f"{project.name}_translated.epub"
@@ -186,6 +243,7 @@ async def export_epub_v2(
                 original_epub=original_path,
                 translations=all_paragraphs,  # Use all_paragraphs instead of translations
                 style="stacked",
+                strip_images=True,  # Remove images for copyright compliance
             )
             builder.build(output_path)
             filename = f"{project.name}_bilingual.epub"
@@ -262,6 +320,7 @@ async def export_html(
     """Export project as HTML file (bilingual format).
 
     This endpoint generates a standalone HTML file with bilingual content.
+    Images are removed for copyright compliance.
 
     Args:
         project_id: Project ID
@@ -280,7 +339,11 @@ async def export_html(
         if chapter_ids:
             html_parts = []
             for chapter_id in chapter_ids:
-                chapter_html = await generator.generate_preview(chapter_id)
+                chapter_html = await generator.generate_preview(
+                    chapter_id,
+                    strip_images=True,
+                    filter_copyright=True,
+                )
                 # Extract body content to avoid multiple html/head tags
                 if '<body>' in chapter_html and '</body>' in chapter_html:
                     body_start = chapter_html.index('<body>') + 6
@@ -305,7 +368,11 @@ async def export_html(
 </html>"""
         else:
             # Export all chapters
-            html_content = await generator.generate_preview(width=width.value)
+            html_content = await generator.generate_preview(
+                width=width.value,
+                strip_images=True,
+                filter_copyright=True,
+            )
 
         # Save to file for download
         exports_dir = ProjectStorage.get_exports_dir(project_id)
@@ -403,7 +470,7 @@ async def export_pdf(
     """Export project as PDF (text and TOC only).
 
     This endpoint generates a copyright-compliant PDF with text content only.
-    Requires WeasyPrint to be installed.
+    Uses ReportLab (pure Python, no system dependencies).
 
     Args:
         project_id: Project ID
@@ -453,11 +520,6 @@ async def export_pdf(
             media_type="application/pdf",
         )
 
-    except ImportError as e:
-        raise HTTPException(
-            status_code=501,
-            detail=f"PDF export unavailable: {e}. Install WeasyPrint to enable."
-        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

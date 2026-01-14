@@ -20,6 +20,7 @@ import {
   PanelRightClose,
   Variable,
   Code,
+  Check,
 } from 'lucide-react'
 import { api, PromptTemplateDB, Project, ProjectVariable, CreateProjectVariableRequest, UpdateProjectVariableRequest } from '../services/api/client'
 import { useTranslation, useAppStore, fontSizeClasses } from '../stores/appStore'
@@ -454,24 +455,80 @@ function ProjectSelector({
   const { t } = useTranslation()
   const fontSize = useAppStore((state) => state.fontSize)
   const fontClasses = fontSizeClasses[fontSize]
+  const [isOpen, setIsOpen] = useState(false)
+  const dropdownRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const selectedProject = projects.find((p) => p.id === selectedProjectId)
+  const displayName = selectedProject
+    ? `${selectedProject.name}${selectedProject.author ? ` (${selectedProject.author})` : ''}`
+    : t('promptManagement.selectProject')
 
   return (
     <div>
       <label className={`block ${fontClasses.sm} font-medium text-gray-700 dark:text-gray-300 mb-2`}>
         {t('promptManagement.selectProject')}
       </label>
-      <select
-        value={selectedProjectId || ''}
-        onChange={(e) => onSelect(e.target.value || null)}
-        className={`w-full max-w-md px-3 py-2 ${fontClasses.base} border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500`}
-      >
-        <option value="">{t('promptManagement.selectProject')}</option>
-        {projects.map((project) => (
-          <option key={project.id} value={project.id}>
-            {project.is_favorite ? '\u2605 ' : ''}{project.name} {project.author ? `(${project.author})` : ''}
-          </option>
-        ))}
-      </select>
+      <div className="relative w-full max-w-md" ref={dropdownRef}>
+        {/* Trigger button */}
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className={`w-full flex items-center gap-2 px-3 py-2 ${fontClasses.base} border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-700 text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors`}
+        >
+          {selectedProject?.is_favorite && (
+            <Star className="w-4 h-4 text-amber-500 fill-amber-500 flex-shrink-0" />
+          )}
+          <span className="flex-1 text-left truncate">{displayName}</span>
+          <ChevronDown className={`w-4 h-4 text-gray-500 transition-transform flex-shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+
+        {/* Dropdown menu */}
+        {isOpen && (
+          <div className="absolute top-full left-0 mt-1 w-full bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50 py-1 max-h-64 overflow-y-auto">
+            {projects.map((project) => {
+              const isSelected = project.id === selectedProjectId
+              const projectDisplayName = `${project.name}${project.author ? ` (${project.author})` : ''}`
+
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(project.id)
+                    setIsOpen(false)
+                  }}
+                  className={`w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-gray-50 dark:hover:bg-gray-700/50 ${fontClasses.base} ${
+                    isSelected ? 'bg-blue-50 dark:bg-blue-900/20' : ''
+                  }`}
+                >
+                  <div className="w-5 flex-shrink-0">
+                    {project.is_favorite && (
+                      <Star className="w-4 h-4 text-amber-500 fill-amber-500" />
+                    )}
+                  </div>
+                  <span className="flex-1 text-gray-900 dark:text-gray-100 truncate">
+                    {projectDisplayName}
+                  </span>
+                  {isSelected && (
+                    <Check className="w-4 h-4 text-blue-600 dark:text-blue-400 flex-shrink-0" />
+                  )}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

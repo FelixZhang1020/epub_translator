@@ -9,7 +9,6 @@ import {
   Save,
   X,
   Loader2,
-  Check,
   Lightbulb,
   Trash2,
   Play,
@@ -17,6 +16,7 @@ import {
   BookOpen,
   PanelRightClose,
   RefreshCw,
+  ArrowLeft,
   ArrowRight,
   Lock,
   Unlock,
@@ -24,7 +24,7 @@ import {
 import { api, ChapterImage } from '../../services/api/client'
 import { useTranslation, useAppStore, fontSizeClasses } from '../../stores/appStore'
 import { useSettingsStore } from '../../stores/settingsStore'
-import { PromptPreviewModal } from '../../components/common/PromptPreviewModal'
+import { PromptTemplateSelector } from '../../components/common/PromptTemplateSelector'
 import { WorkflowChapterList } from '../../components/workflow/WorkflowChapterList'
 import { ReferencePanel } from '../../components/workflow/ReferencePanel'
 import { LLMConfigSelector } from '../../components/common/LLMConfigSelector'
@@ -80,9 +80,12 @@ export function TranslateWorkflowPage() {
     translatedText: string
   } | null>(null)
 
-  // Prompt preview state
-  const [showTranslationPromptPreview, setShowTranslationPromptPreview] = useState(false)
+  // Preview modal state
   const [showPreviewModal, setShowPreviewModal] = useState(false)
+
+  // Custom prompts from template selector (used when user edits in modal)
+  const [customSystemPrompt, setCustomSystemPrompt] = useState<string | undefined>()
+  const [customUserPrompt, setCustomUserPrompt] = useState<string | undefined>()
 
   // Reference panel state
   const [showReferencePanel, setShowReferencePanel] = useState(false)
@@ -158,6 +161,19 @@ export function TranslateWorkflowPage() {
     return map
   }, [toc])
 
+  // Build chapter stats map for translation progress display
+  const chapterStatsMap = useMemo(() => {
+    const map = new Map<string, { translated: number; total: number }>()
+    chapters?.forEach(chapter => {
+      map.set(chapter.id, {
+        translated: chapter.translated_count,
+        total: chapter.paragraph_count,
+      })
+    })
+    return map
+  }, [chapters])
+
+
   // Wrapper function to update both state and URL params
   const setSelectedChapterWithUrl = useCallback((chapterId: string) => {
     setSelectedChapter(chapterId)
@@ -191,9 +207,6 @@ export function TranslateWorkflowPage() {
       return ''
     }
 
-    // Extract work_profile (nested structure from reformed-theology schema)
-    const workProfile = rawAnalysis?.work_profile as Record<string, unknown> | undefined
-
     // Extract values supporting both flat (default schema) and nested (reformed-theology schema)
     const writingStyle = getNestedValue(rawAnalysis, 'writing_style', 'work_profile.writing_style')
     const tone = getNestedValue(rawAnalysis, 'tone', 'work_profile.tone')
@@ -211,21 +224,21 @@ export function TranslateWorkflowPage() {
     }> | undefined
     const terminologyText = terminology
       ? terminology.map(t => {
-          const chinese = t.recommended_chinese || t.chinese_translation || ''
-          const fallbacks = t.fallback_options?.slice(0, 2).join(', ')
-          let line = `- **${t.english_term}**: ${chinese}`
-          if (fallbacks) line += ` (alt: ${fallbacks})`
-          if (t.usage_rule) line += `\n  - Usage: ${t.usage_rule.slice(0, 100)}${t.usage_rule.length > 100 ? '...' : ''}`
-          return line
-        }).join('\n')
+        const chinese = t.recommended_chinese || t.chinese_translation || ''
+        const fallbacks = t.fallback_options?.slice(0, 2).join(', ')
+        let line = `- **${t.english_term}**: ${chinese}`
+        if (fallbacks) line += ` (alt: ${fallbacks})`
+        if (t.usage_rule) line += `\n  - Usage: ${t.usage_rule.slice(0, 100)}${t.usage_rule.length > 100 ? '...' : ''}`
+        return line
+      }).join('\n')
       : ''
 
     // Format translation_principles for display
     const principles = rawAnalysis?.translation_principles as Record<string, unknown> | undefined
     const priorityOrder = (principles?.priority_order as string[] | string | undefined)
       ? (Array.isArray(principles?.priority_order)
-          ? (principles.priority_order as string[]).join(', ')
-          : String(principles?.priority_order))
+        ? (principles.priority_order as string[]).join(', ')
+        : String(principles?.priority_order))
       : ''
     const faithfulnessBoundary = getNestedValue(rawAnalysis,
       'translation_principles.faithfulness_boundary',
@@ -250,7 +263,7 @@ export function TranslateWorkflowPage() {
       'project.author': context?.project?.epub_author || '',
       'project.author_background': context?.project?.author_background || '',
       // Content
-      'content.source': '(Source text will be provided during translation)',
+      'content.source': t('prompts.placeholderSource'),
       // Derived from analysis
       'derived.writing_style': writingStyle,
       'derived.tone': tone,
@@ -459,18 +472,24 @@ export function TranslateWorkflowPage() {
     },
   })
 
-  // Handler for translation prompt confirmation
+  // Handler for translation prompt confirmation from the selector modal
   const handleTranslationPromptConfirm = (systemPrompt?: string, userPrompt?: string) => {
-    setShowTranslationPromptPreview(false)
+    // Store custom prompts for use in translation
+    setCustomSystemPrompt(systemPrompt)
+    setCustomUserPrompt(userPrompt)
+    // Start translation with custom prompts
     startTranslationMutation.mutate({
       customSystemPrompt: systemPrompt,
       customUserPrompt: userPrompt,
     })
   }
 
-  // Start translation directly without prompt preview
+  // Start translation directly with current prompts (from selector or default)
   const handleStartTranslationClick = () => {
-    startTranslationMutation.mutate({})
+    startTranslationMutation.mutate({
+      customSystemPrompt,
+      customUserPrompt,
+    })
   }
 
   // Handle file upload for reference
@@ -528,140 +547,88 @@ export function TranslateWorkflowPage() {
   return (
     <div className={`h-full flex flex-col ${fontClasses.base}`}>
       {/* Action Bar - unified format */}
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-2 bg-white dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
-        <div className="flex items-center gap-2 lg:gap-4">
-          {/* Page title */}
-          <h2 className={`font-semibold text-gray-900 dark:text-gray-100 ${fontClasses.heading}`}>
-            {t('workflow.translation')}
-          </h2>
-
-          {/* Reference EPUB status */}
-          {hasReference && referenceEpub ? (
-            <div className={`flex items-center gap-2 ${fontClasses.base}`}>
-              <FileText className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
-              <span className="hidden sm:inline text-gray-600 dark:text-gray-400">{t('translate.referenceLoaded')}: </span>
-              <span className="font-medium text-gray-900 dark:text-gray-100 truncate max-w-[150px] lg:max-w-none">{referenceEpub.filename}</span>
-              <span className={`hidden md:inline text-gray-400 dark:text-gray-500 ${fontClasses.xs}`}>
-                ({referenceEpub.total_chapters} {t('translate.chapters')}, {referenceEpub.total_paragraphs} {t('translate.paragraphs')})
-              </span>
-              <button
-                onClick={() => deleteReferenceMutation.mutate()}
-                className="p-1 text-red-500 hover:text-red-700 flex-shrink-0"
-                title={t('translate.removeReference')}
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowReferencePanel(!showReferencePanel)}
-                className={`flex items-center gap-2 px-2 lg:px-3 py-1.5 border rounded-lg flex-shrink-0 transition-colors ${showReferencePanel
-                  ? 'border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
-                  : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
-                  } ${fontClasses.button}`}
-                title={showReferencePanel ? t('translate.hideReferencePanel') : t('translate.showReferencePanel')}
-              >
-                {showReferencePanel ? <PanelRightClose className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
-                <span className="hidden lg:inline">{t('translate.reference')}</span>
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <label className={`flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 ${fontClasses.button}`}>
-                <Upload className="w-4 h-4" />
-                {t('translate.uploadReference')}
-                <input
-                  type="file"
-                  accept=".epub"
-                  onChange={handleReferenceUpload}
-                  className="hidden"
-                  disabled={uploadReferenceMutation.isPending}
-                />
-              </label>
-              {uploadReferenceMutation.isPending && (
-                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 lg:gap-3 ml-auto">
-          {/* LLM Config selector */}
-          <LLMConfigSelector />
-
-          <button
-            onClick={() => setShowTranslationPromptPreview(true)}
-            disabled={!hasLLMConfig}
-            className={`flex items-center gap-2 px-2 lg:px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 ${fontClasses.button}`}
-            title={t('prompts.viewPrompt')}
-          >
-            <FileText className="w-4 h-4" />
-            <span className="hidden lg:inline">{t('prompts.viewPrompt')}</span>
-          </button>
-
-          {/* Start translation button - translates current chapter only */}
-          <button
-            onClick={handleStartTranslationClick}
-            disabled={!hasLLMConfig || !chapterContent || startTranslationMutation.isPending || isTranslating}
-            title={chapterContent ? t('translate.translateChapterHint', { chapter: chapterContent.title || String(chapterContent.chapter_number) }) : ''}
-            className={`flex items-center gap-2 px-3 lg:px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed ${fontClasses.button}`}
-          >
-            {(startTranslationMutation.isPending || isTranslating) ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Play className="w-4 h-4" />
-            )}
-            <span className="hidden sm:inline">{isTranslating ? t('translate.translating') : t('translate.translateCurrentChapter')}</span>
-          </button>
-
-          {/* Cancel stuck tasks button - only show when translating */}
-          {isTranslating && (
+      <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-200 dark:border-gray-700 mb-2">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Left Group: Back + LLM + Prompt */}
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => cancelStuckTasksMutation.mutate()}
-              disabled={cancelStuckTasksMutation.isPending}
-              className={`flex items-center gap-2 px-3 py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 ${fontClasses.button}`}
-              title={t('translate.cancelStuckTasks')}
+              onClick={() => navigate(`/project/${projectId}/analysis`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-sm font-medium transition-colors"
             >
-              {cancelStuckTasksMutation.isPending ? (
+              <ArrowLeft className="w-4 h-4" />
+              <span className="hidden sm:inline">{t('common.back')}</span>
+            </button>
+            <LLMConfigSelector />
+            <PromptTemplateSelector
+              promptType="translation"
+              projectId={projectId}
+              variables={promptPreviewVariables}
+              disabled={!hasLLMConfig}
+              onConfirm={handleTranslationPromptConfirm}
+              isLoading={startTranslationMutation.isPending}
+              compact
+            />
+          </div>
+
+          {/* Spacer */}
+          <div className="flex-1" />
+
+          {/* Right Group: Cancel + Translate + Next */}
+          <div className="flex items-center gap-2">
+            {/* Cancel stuck tasks button */}
+            {isTranslating && (
+              <button
+                onClick={() => cancelStuckTasksMutation.mutate()}
+                disabled={cancelStuckTasksMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-orange-600 dark:text-orange-400 border border-orange-300 dark:border-orange-700 rounded-lg hover:bg-orange-50 dark:hover:bg-orange-900/30 text-sm font-medium transition-colors"
+                title={t('translate.cancelStuckTasks')}
+              >
+                {cancelStuckTasksMutation.isPending ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <X className="w-4 h-4" />
+                )}
+                <span className="hidden sm:inline">{t('common.cancel')}</span>
+              </button>
+            )}
+
+            {/* Translate button */}
+            <button
+              onClick={handleStartTranslationClick}
+              disabled={!hasLLMConfig || !chapterContent || startTranslationMutation.isPending || isTranslating}
+              title={chapterContent ? t('translate.translateChapterHint', { chapter: chapterContent.title || String(chapterContent.chapter_number) }) : ''}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+            >
+              {(startTranslationMutation.isPending || isTranslating) ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                <X className="w-4 h-4" />
+                <Play className="w-4 h-4" />
               )}
-              <span className="hidden lg:inline">{cancelStuckTasksMutation.isPending ? t('translate.cancelingTasks') : t('common.cancel')}</span>
+              <span className="hidden sm:inline">
+                {(startTranslationMutation.isPending || isTranslating) ? t('translate.translating') : t('translate.translateCurrentChapter')}
+              </span>
             </button>
-          )}
-          <button
-            onClick={() => setShowPreviewModal(true)}
-            className={`flex items-center gap-2 px-2 lg:px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 ${fontClasses.button}`}
-          >
-            <BookOpen className="w-4 h-4" />
-            <span className="hidden lg:inline">{t('common.preview')}</span>
-          </button>
 
-          {/* Complete Translation button */}
-          <button
-            onClick={() => {
-              if (translationCompleted) {
-                // If already completed, just navigate to proofreading
-                navigate(`/project/${projectId}/proofread`)
-              } else {
-                // If not completed, confirm and navigate
-                confirmTranslationMutation.mutate()
-              }
-            }}
-            disabled={!translationCompleted && (!canConfirmTranslation || confirmTranslationMutation.isPending)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg ${fontClasses.button} ${translationCompleted
-              ? 'bg-green-600 text-white hover:bg-green-700 cursor-pointer'
-              : 'bg-green-600 text-white hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed'
-              }`}
-          >
-            {confirmTranslationMutation.isPending ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : translationCompleted ? (
-              <ArrowRight className="w-4 h-4" />
-            ) : (
-              <Check className="w-4 h-4" />
-            )}
-            {translationCompleted ? t('workflow.continueToProofreading') : t('translate.completeTranslation')}
-          </button>
+            {/* Next button */}
+            <button
+              onClick={() => {
+                if (translationCompleted) {
+                  navigate(`/project/${projectId}/proofread`)
+                } else {
+                  confirmTranslationMutation.mutate()
+                }
+              }}
+              disabled={!translationCompleted && (!canConfirmTranslation || confirmTranslationMutation.isPending)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium transition-colors"
+            >
+              {confirmTranslationMutation.isPending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <ArrowRight className="w-4 h-4" />
+              )}
+              <span className="hidden sm:inline">{t('common.next')}</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -675,10 +642,64 @@ export function TranslateWorkflowPage() {
           onSelectChapter={setSelectedChapterWithUrl}
           onResize={handleChapterListResize}
           fontClasses={fontClasses}
+          chapterStatsMap={chapterStatsMap}
         />
 
         {/* Main content area - maintains minimum width */}
         <div className="flex-1 flex flex-col min-h-0 min-w-[500px]">
+          {/* Reference EPUB Row - above stats */}
+          <div className="flex items-center justify-between gap-2 mb-2 bg-white dark:bg-gray-800 p-2 px-3 rounded-lg border border-gray-200 dark:border-gray-700">
+            {hasReference && referenceEpub ? (
+              <div className={`flex items-center gap-2 ${fontClasses.base}`}>
+                <FileText className="w-4 h-4 text-green-600 dark:text-green-400 flex-shrink-0" />
+                <span className="text-gray-600 dark:text-gray-400">{t('translate.referenceLoaded')}</span>
+                <span className={`text-gray-500 dark:text-gray-400 ${fontClasses.xs}`}>
+                  ({referenceEpub.total_chapters} {t('translate.chapters')}, {referenceEpub.total_paragraphs} {t('translate.paragraphs')})
+                </span>
+                <button
+                  onClick={() => deleteReferenceMutation.mutate()}
+                  className="p-1 text-red-500 hover:text-red-700 flex-shrink-0"
+                  title={t('translate.removeReference')}
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <div className={`flex items-center gap-2 ${fontClasses.base}`}>
+                <FileText className="w-4 h-4 text-gray-400 dark:text-gray-500 flex-shrink-0" />
+                <span className="text-gray-500 dark:text-gray-400">{t('translate.reference')}: </span>
+                <label className={`flex items-center gap-2 px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/50 ${fontClasses.sm}`}>
+                  <Upload className="w-3.5 h-3.5" />
+                  {t('translate.uploadReference')}
+                  <input
+                    type="file"
+                    accept=".epub"
+                    onChange={handleReferenceUpload}
+                    className="hidden"
+                    disabled={uploadReferenceMutation.isPending}
+                  />
+                </label>
+                {uploadReferenceMutation.isPending && (
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                )}
+              </div>
+            )}
+            {/* Toggle reference panel button - only show when reference is loaded */}
+            {hasReference && referenceEpub && (
+              <button
+                onClick={() => setShowReferencePanel(!showReferencePanel)}
+                className={`flex items-center gap-2 px-2 lg:px-3 py-1 border rounded-lg flex-shrink-0 transition-colors ${showReferencePanel
+                  ? 'border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'
+                  : 'border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
+                  } ${fontClasses.sm}`}
+                title={showReferencePanel ? t('translate.hideReferencePanel') : t('translate.showReferencePanel')}
+              >
+                {showReferencePanel ? <PanelRightClose className="w-4 h-4" /> : <BookOpen className="w-4 h-4" />}
+                <span className="hidden sm:inline">{t('translate.reference')}</span>
+              </button>
+            )}
+          </div>
+
           {/* Chapter navigation */}
           <div className="flex items-center justify-between mb-2 px-1">
             <button
@@ -913,15 +934,6 @@ export function TranslateWorkflowPage() {
         />
       )}
 
-      <PromptPreviewModal
-        isOpen={showTranslationPromptPreview}
-        onClose={() => setShowTranslationPromptPreview(false)}
-        promptType="translation"
-        projectId={projectId}
-        variables={promptPreviewVariables}
-        onConfirm={handleTranslationPromptConfirm}
-        isLoading={startTranslationMutation.isPending}
-      />
     </div>
   )
 }

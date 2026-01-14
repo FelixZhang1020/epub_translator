@@ -1,6 +1,6 @@
 import { ReactNode, useMemo } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { BookOpen, Settings, Home, Loader2, Languages, FileCheck, Download, Check, FileText } from 'lucide-react'
+import { Settings, Home, Loader2, Languages, FileCheck, Download, Check, FileText, ScanSearch, BookOpen } from 'lucide-react'
 import { ThemeToggle } from '../common/ThemeToggle'
 import { LanguageToggle } from '../common/LanguageToggle'
 import { useTranslation, useAppStore, globalFontSizeClass, fontSizeClasses, WorkflowStepStatus } from '../../stores/appStore'
@@ -33,7 +33,7 @@ function HeaderStepIndicator({
   // Build steps array - fixed structure
   const steps = useMemo(() => {
     const baseSteps = [
-      { id: 'analysis', icon: BookOpen, label: t('workflow.analysis') },
+      { id: 'analysis', icon: ScanSearch, label: t('workflow.analysis') },
       { id: 'translation', icon: Languages, label: t('workflow.translation') },
       { id: 'proofreading', icon: FileCheck, label: t('workflow.proofreading') },
       { id: 'export', icon: Download, label: t('workflow.export') },
@@ -96,47 +96,48 @@ function HeaderStepIndicator({
   }
 
   return (
-    <div className="flex items-center gap-1">
+    <div className="flex">
       {steps.map((step, index) => {
         const stepStatus = getStepStatus(step.id)
+        const prevStepStatus = index > 0 ? getStepStatus(steps[index - 1].id) : null
         const canClick = canNavigate(step.id)
         const Icon = step.icon
 
-        return (
-          <div key={step.id} className="flex items-center">
-            {/* Connector line */}
-            {index > 0 && (
-              <div className={`w-6 h-0.5 ${
-                getStepStatus(steps[index - 1].id) === 'completed'
-                  ? 'bg-blue-500'
-                  : getStepStatus(steps[index - 1].id) === 'in_progress'
-                  ? 'bg-amber-400'
-                  : 'bg-gray-300 dark:bg-gray-600'
-              }`} />
-            )}
+        // Connector color based on previous step status
+        const connectorColor = prevStepStatus === 'completed'
+          ? 'bg-blue-500'
+          : prevStepStatus === 'in_progress'
+          ? 'bg-amber-400'
+          : 'bg-gray-300 dark:bg-gray-600'
 
-            {/* Step with label */}
-            <button
-              onClick={() => canClick && onStepClick(step.id)}
-              disabled={!canClick}
-              className={`
-                flex flex-col items-center gap-0.5 transition-all
-                ${canClick ? 'cursor-pointer' : 'cursor-not-allowed'}
-              `}
-            >
+        return (
+          <button
+            key={step.id}
+            onClick={() => canClick && onStepClick(step.id)}
+            disabled={!canClick}
+            className={`
+              w-[76px] flex flex-col items-center gap-0.5 transition-all
+              ${canClick ? 'cursor-pointer' : 'cursor-not-allowed'}
+            `}
+          >
+            {/* Icon row with connectors */}
+            <div className="relative flex items-center justify-center w-full h-7">
+              {/* Left connector */}
+              {index > 0 && (
+                <div className={`absolute right-1/2 mr-3.5 w-[calc(50%-14px)] h-0.5 ${connectorColor}`} />
+              )}
               {/* Step circle */}
               <span
                 className={`
-                  w-7 h-7 rounded-full flex items-center justify-center transition-all
+                  w-7 h-7 rounded-full flex items-center justify-center transition-all z-10
                   ${stepStatus === 'completed'
                     ? 'bg-blue-600 text-white'
                     : stepStatus === 'in_progress'
                     ? 'border-2 border-amber-500 text-amber-600 bg-amber-50 dark:bg-amber-900/30 animate-pulse'
                     : stepStatus === 'current'
                     ? 'border-2 border-blue-600 text-blue-600 bg-blue-50 dark:bg-blue-900/30'
-                    : 'border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500'
+                    : 'border border-gray-300 dark:border-gray-600 text-gray-400 dark:text-gray-500 bg-white dark:bg-gray-800'
                   }
-                  ${canClick && stepStatus !== 'completed' && stepStatus !== 'in_progress' ? 'group-hover:border-blue-500 group-hover:text-blue-500' : ''}
                 `}
               >
                 {stepStatus === 'completed' ? (
@@ -147,24 +148,34 @@ function HeaderStepIndicator({
                   <Icon className="w-3.5 h-3.5" />
                 )}
               </span>
-              {/* Step label */}
-              <span
-                className={`
-                  text-[10px] font-medium whitespace-nowrap
-                  ${stepStatus === 'in_progress'
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : stepStatus === 'current'
-                    ? 'text-blue-600 dark:text-blue-400'
-                    : stepStatus === 'completed'
-                    ? 'text-gray-700 dark:text-gray-300'
-                    : 'text-gray-400 dark:text-gray-500'
-                  }
-                `}
-              >
-                {step.label}
-              </span>
-            </button>
-          </div>
+              {/* Right connector */}
+              {index < steps.length - 1 && (
+                <div className={`absolute left-1/2 ml-3.5 w-[calc(50%-14px)] h-0.5 ${
+                  stepStatus === 'completed'
+                    ? 'bg-blue-500'
+                    : stepStatus === 'in_progress'
+                    ? 'bg-amber-400'
+                    : 'bg-gray-300 dark:bg-gray-600'
+                }`} />
+              )}
+            </div>
+            {/* Step label */}
+            <span
+              className={`
+                text-[10px] font-medium whitespace-nowrap
+                ${stepStatus === 'in_progress'
+                  ? 'text-amber-600 dark:text-amber-400'
+                  : stepStatus === 'current'
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : stepStatus === 'completed'
+                  ? 'text-gray-700 dark:text-gray-300'
+                  : 'text-gray-400 dark:text-gray-500'
+                }
+              `}
+            >
+              {step.label}
+            </span>
+          </button>
         )
       })}
     </div>
@@ -205,16 +216,23 @@ export function Layout({ children }: LayoutProps) {
     navigate(`/project/${workflowStatus.projectId}/${stepToPath[step]}`)
   }
 
-  // Check if this is a translate page that needs fixed viewport layout
+  // Check if this is a workflow page that needs special layout
+  const isAnalysisPage = location.pathname.includes('/analysis')
   const isTranslatePage = location.pathname.includes('/translate')
+  const isProofreadPage = location.pathname.includes('/proofread')
+  const isExportPage = location.pathname.includes('/export')
+  // All workflow pages use wide layout (90% width)
+  const isWideLayout = isAnalysisPage || isTranslatePage || isProofreadPage || isExportPage
+  // Only translate/proofread/export need fixed height viewport
+  const isFixedHeightPage = isTranslatePage || isProofreadPage || isExportPage
 
   return (
     <div className={`bg-gray-50 dark:bg-gray-900 transition-colors duration-200 ${globalFontClass} ${
-      isTranslatePage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen'
+      isFixedHeightPage ? 'h-screen flex flex-col overflow-hidden' : 'min-h-screen'
     }`}>
       {/* Header */}
       <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 transition-colors duration-200 flex-shrink-0">
-        <div className={`mx-auto ${isTranslatePage ? 'w-[90%]' : 'max-w-7xl px-4 sm:px-6 lg:px-8'}`}>
+        <div className={`mx-auto ${isWideLayout ? 'w-[90%]' : 'max-w-7xl px-4 sm:px-6 lg:px-8'}`}>
           <div className="flex items-center h-14">
             {/* Left: Logo */}
             <div className="flex items-center flex-shrink-0">
@@ -267,11 +285,11 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
-      {/* Main content - full width for translate pages, constrained for others */}
+      {/* Main content - wide for workflow pages, constrained for others */}
       <main className={`${
-        isTranslatePage
-          ? 'w-[90%] mx-auto py-1 flex-1 min-h-0 overflow-hidden'
-          : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6'
+        isWideLayout
+          ? `w-[90%] mx-auto pt-4 pb-1 ${isFixedHeightPage ? 'flex-1 min-h-0 overflow-hidden' : ''}`
+          : 'max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 pb-1'
       }`}>
         {children}
       </main>

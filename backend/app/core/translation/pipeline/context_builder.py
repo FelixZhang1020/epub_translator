@@ -18,6 +18,7 @@ from ..models.context import (
     SourceMaterial,
     TranslationContext,
     TranslationMode,
+    ProjectMetadata,
 )
 from app.core.prompts.loader import PromptLoader
 
@@ -124,6 +125,13 @@ class ContextBuilder:
             book_analysis=book_analysis,
             adjacent=adjacent,
             existing=existing,
+            project=ProjectMetadata(
+                title=getattr(project, "title", None) or getattr(project, "epub_title", "") or "",
+                author=getattr(project, "author", None) or getattr(project, "epub_author", "") or "",
+                source_language=getattr(project, "source_language", "en"),
+                target_language=getattr(project, "target_language", "zh"),
+                author_background=getattr(project, "author_background", None),
+            ),
             custom_system_prompt=custom_system_prompt,
             custom_user_prompt=custom_user_prompt,
         )
@@ -357,7 +365,6 @@ class ContextBuilder:
         prompt_type_map = {
             TranslationMode.DIRECT: "translation",
             TranslationMode.AUTHOR_AWARE: "translation",
-            TranslationMode.ITERATIVE: "translation",
             TranslationMode.OPTIMIZATION: "optimization",
         }
         prompt_type = prompt_type_map.get(mode, "translation")
