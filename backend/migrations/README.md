@@ -55,3 +55,4 @@ To switch to migration-only mode, set `SKIP_DB_CREATE_ALL=true` in your environm
 - Always review auto-generated migrations before applying
 - SQLite has limited ALTER TABLE support - some migrations may need manual adjustment
 - Test migrations on a copy of production data before deploying
+

@@ -110,3 +110,4 @@ class ProofreadingSuggestion(Base):
     paragraph: Mapped["Paragraph"] = relationship(
         "Paragraph", back_populates="proofreading_suggestions"
     )
+

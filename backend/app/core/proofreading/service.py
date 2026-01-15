@@ -621,3 +621,4 @@ class ProofreadingService:
 
 # Global service instance
 proofreading_service = ProofreadingService()
+

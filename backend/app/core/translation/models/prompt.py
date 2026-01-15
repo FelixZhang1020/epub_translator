@@ -117,3 +117,4 @@ class PromptBundle(BaseModel):
         total_chars = sum(len(m.content) for m in self.messages)
         # Rough estimate: average 3 chars per token (mix of EN/ZH)
         return total_chars // 3
+

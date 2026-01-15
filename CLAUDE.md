@@ -732,3 +732,4 @@ safeTruncate(text, 100)
 3. **Config Flows Through** - `LLMRuntimeConfig` ensures params reach LLM calls
 4. **Async-First Database** - All DB operations use AsyncSession
 5. **Project-Scoped Storage** - Each project has isolated file storage
+

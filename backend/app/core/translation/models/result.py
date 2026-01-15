@@ -83,3 +83,4 @@ class TranslationResult(BaseModel):
             True if quality flag indicates review needed
         """
         return self.quality_flag in (QualityFlag.NEEDS_REVIEW, QualityFlag.UNCERTAIN)
+

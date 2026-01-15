@@ -72,3 +72,4 @@ Goal: Use **JSON** to provide style, tone, audience, genre traits, terminology, 
 - Use empty strings or arrays for missing info; do not omit keys.
 - The `key_terminology` list should include roughly 10–30 core terms.
 - Default translation priority is "Faithfulness > Clarity > Elegance"; keep this unless more specific needs arise.
+

@@ -11,3 +11,4 @@ When suggesting a new translation, use this format:
 **Suggested translation:** "your complete translation here"
 
 When given specific improvement instructions, output only the improved translation without explanation.
+

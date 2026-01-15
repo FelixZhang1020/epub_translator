@@ -105,3 +105,4 @@ class VariableType(str, Enum):
     NUMBER = "number"
     BOOLEAN = "boolean"
     JSON = "json"  # For arrays or objects
+

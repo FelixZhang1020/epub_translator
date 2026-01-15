@@ -7,3 +7,4 @@ data/** linguist-vendored
 *.mako linguist-generated
 frontend/*.js linguist-vendored
 frontend/src/index.css linguist-vendored
+

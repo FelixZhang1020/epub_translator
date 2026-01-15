@@ -20,3 +20,4 @@ async def get_feature_flags() -> FeatureFlags:
     return FeatureFlags(
         enable_epub_export=settings.enable_epub_export,
     )
+

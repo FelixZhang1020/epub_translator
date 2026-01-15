@@ -14,3 +14,4 @@ This file is kept for backwards compatibility but should not be used.
 
 # All prompts have been moved to template files
 # See backend/prompts/ directory
+

@@ -25,3 +25,4 @@ We are committed to a welcoming, harassment-free experience for everyone, regard
 - 尊重、友善、包容，讨论聚焦问题本身；避免人身攻击、歧视或泄露敏感信息。  
 - 违规行为（骚扰、仇恨言论、威胁、泄密等）将被删除并可能导致禁言/移除。  
 - 如需举报，请优先通过私密渠道（安全通告）；如无法使用，可提交 Issue（简要描述）并请求私下跟进。  
+

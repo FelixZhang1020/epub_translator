@@ -845,3 +845,4 @@ export function validateTemplateSyntax(template: string): TemplateSyntaxError[] 
 
   return errors
 }
+

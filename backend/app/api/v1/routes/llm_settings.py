@@ -371,3 +371,4 @@ async def duplicate_llm_configuration(
         raise HTTPException(status_code=404, detail=f"Configuration not found: {config_id}")
 
     return config.to_dict(include_api_key=False)
+

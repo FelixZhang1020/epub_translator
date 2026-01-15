@@ -77,3 +77,4 @@ class PromptStrategy(ABC):
         if len(text) <= max_chars:
             return text
         return safe_truncate(text, max_chars)
+

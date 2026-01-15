@@ -137,3 +137,4 @@ def normalize_for_display(text: str, max_length: Optional[int] = None) -> str:
         text = safe_truncate(text, max_length)
 
     return text.strip()
+

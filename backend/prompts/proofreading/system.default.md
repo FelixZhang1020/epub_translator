@@ -70,3 +70,4 @@ Output only the JSON below and nothing else:
   "explanation": "[Required] Detailed pros/cons of the translation. If there are issues, point them out specifically and suggest improvements; if quality is good, state the strengths. This field is the core feedback and must be detailed and constructive."
 }
 ```
+

@@ -30,3 +30,4 @@ export function formatDateTime(date: string | Date): string {
   const minutes = String(d.getMinutes()).padStart(2, '0')
   return `${year}-${month}-${day} ${hours}:${minutes}`
 }
+

@@ -543,3 +543,4 @@ class PdfGenerator:
                 result.update(child_map)
 
         return result
+

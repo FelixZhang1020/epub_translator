@@ -91,3 +91,4 @@ class Project(Base):
     proofreading_sessions: Mapped[list["ProofreadingSession"]] = relationship(
         "ProofreadingSession", back_populates="project", cascade="all, delete-orphan"
     )
+

@@ -69,3 +69,4 @@ def downgrade() -> None:
     op.drop_column("paragraphs", "content_type")
     op.drop_column("chapters", "is_proofreadable")
     op.drop_column("chapters", "chapter_type")
+

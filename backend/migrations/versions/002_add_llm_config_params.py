@@ -55,3 +55,4 @@ def downgrade() -> None:
     op.drop_column('llm_configurations', 'frequency_penalty')
     op.drop_column('llm_configurations', 'top_p')
     op.drop_column('llm_configurations', 'max_tokens')
+

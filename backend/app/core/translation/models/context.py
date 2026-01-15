@@ -296,3 +296,4 @@ class TranslationContext(BaseModel):
             f"- {en}: {zh}"
             for en, zh in self.book_analysis.key_terminology.items()
         ]
+

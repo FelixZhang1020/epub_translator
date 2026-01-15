@@ -28,3 +28,4 @@ This project processes user-supplied EPUB files and LLM prompts/responses. Opera
 
 ## Exports & copyright
 - Exports default to plain-text HTML/PDF; distributing copyrighted source material may be illegal. Operators must comply with local laws and licenses.
+

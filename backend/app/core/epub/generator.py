@@ -486,3 +486,4 @@ class EPUBGenerator:
         }}
         """
         return css.encode("utf-8")
+

@@ -74,3 +74,4 @@ settings = Settings()
 # Ensure directories exist
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 settings.output_dir.mkdir(parents=True, exist_ok=True)
+

@@ -98,3 +98,4 @@ class ProjectPromptConfig(Base):
 # }
 #
 # Variables are accessed in templates via {{user.variable_name}} syntax.
+

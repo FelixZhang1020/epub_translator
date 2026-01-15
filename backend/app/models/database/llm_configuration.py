@@ -128,3 +128,4 @@ class LLMConfiguration(Base):
         if self.provider == "openai":
             return self.model
         return f"{prefix}{self.model}"
+

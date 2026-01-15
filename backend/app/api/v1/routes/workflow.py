@@ -473,3 +473,4 @@ def _validate_step_transition(project: Project, new_step: WorkflowStep) -> bool:
             return project.proofreading_completed  # Need completed proofreading
 
     return False
+

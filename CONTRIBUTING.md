@@ -33,3 +33,4 @@ Thanks for helping improve ePub Translator! This guide keeps contributions smoot
 - 分支命名：`feature/*`、`fix/*`、`docs/*`、`chore/*`，改动尽量小而集中。  
 - 提交前运行：后端 `pytest`；前端 `npm run lint && npm run build`；涉及流程时手动跑一次上传→分析→翻译→校对→导出。  
 - 重要行为变更请更新文档/提示词，提交 PR 时按模板填写并备注验证方式。  
+

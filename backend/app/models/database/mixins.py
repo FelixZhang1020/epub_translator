@@ -21,3 +21,4 @@ class ProgressTrackingMixin:
         """
         if self.total_paragraphs > 0:
             self.progress = (self.completed_paragraphs / self.total_paragraphs) * 100.0
+

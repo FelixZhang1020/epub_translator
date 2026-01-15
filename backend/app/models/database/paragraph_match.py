@@ -57,3 +57,4 @@ class ParagraphMatch(Base):
     source_paragraph: Mapped["Paragraph"] = relationship(
         "Paragraph", back_populates="reference_match"
     )
+

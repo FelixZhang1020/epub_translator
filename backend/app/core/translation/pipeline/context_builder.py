@@ -547,3 +547,4 @@ class ContextBuilder:
             variables["user"] = {}
 
         return variables
+

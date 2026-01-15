@@ -686,3 +686,4 @@ class BilingualEPUBBuilder:
                     file_path = Path(root) / filename
                     arcname = str(file_path.relative_to(source_dir))
                     zip_out.write(file_path, arcname)
+

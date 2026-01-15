@@ -318,3 +318,4 @@ async def regenerate_field(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Regeneration failed: {str(e)}")
+

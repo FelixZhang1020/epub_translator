@@ -105,3 +105,4 @@ class TranslationTask(Base, ProgressTrackingMixin):
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="tasks")
+

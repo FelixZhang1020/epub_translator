@@ -538,3 +538,4 @@ class LLMService:
 
 # Global service instance
 llm_service = LLMService()
+

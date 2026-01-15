@@ -49,3 +49,4 @@ class TextOnlyHtmlGenerator:
         """
         html = self.generate(content, mode)
         return html.encode("utf-8")
+

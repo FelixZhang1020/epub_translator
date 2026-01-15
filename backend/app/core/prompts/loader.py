@@ -1841,3 +1841,4 @@ class PromptLoader:
             del metadata[category][template_name]
             cls._save_template_metadata(metadata)
             logger.info(f"Deleted metadata for {category}/{template_name}")
+

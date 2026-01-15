@@ -48,3 +48,4 @@ class BookAnalysis(Base):
 
     # Relationships
     project: Mapped["Project"] = relationship("Project", back_populates="analysis")
+

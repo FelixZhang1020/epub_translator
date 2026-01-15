@@ -3,3 +3,4 @@
 from .text import safe_truncate, safe_truncate_json
 
 __all__ = ["safe_truncate", "safe_truncate_json"]
+

@@ -418,3 +418,4 @@ async def get_quick_recommendation(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get recommendation: {str(e)}")
+

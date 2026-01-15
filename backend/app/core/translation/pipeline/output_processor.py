@@ -249,3 +249,4 @@ class OutputProcessor:
             # Common abbreviations
             "email", "wifi", "usb", "pdf", "jpg", "png", "gif",
         }
+

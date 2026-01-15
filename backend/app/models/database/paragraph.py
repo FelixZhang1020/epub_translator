@@ -76,3 +76,4 @@ class Paragraph(Base):
         if not self.translations:
             return None
         return max(self.translations, key=lambda t: t.created_at)
+

@@ -243,3 +243,4 @@ async def validate_project_exists(
 
 # Type alias for cleaner dependency injection
 ValidatedProject = Annotated[Project, Depends(get_validated_project)]
+

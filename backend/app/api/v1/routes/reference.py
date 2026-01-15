@@ -433,3 +433,4 @@ async def search_reference_content(
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
+

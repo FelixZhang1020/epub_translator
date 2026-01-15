@@ -746,3 +746,4 @@ window.addEventListener('scroll', highlightActiveChapter);
 // Initial highlight
 highlightActiveChapter();
 """
+

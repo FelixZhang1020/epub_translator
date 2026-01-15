@@ -57,3 +57,4 @@ class AnalysisTask(Base):
     project: Mapped["Project"] = relationship(
         "Project", back_populates="analysis_tasks"
     )
+

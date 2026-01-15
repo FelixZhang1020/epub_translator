@@ -630,3 +630,4 @@ class BookAnalysisService:
 
 # Global service instance
 analysis_service = BookAnalysisService()
+

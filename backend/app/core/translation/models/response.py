@@ -81,3 +81,4 @@ class LLMResponse(BaseModel):
     def estimated_cost_usd(self) -> float:
         """Get estimated cost in USD."""
         return self.usage.estimate_cost_usd()
+

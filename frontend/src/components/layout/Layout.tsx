@@ -296,3 +296,4 @@ export function Layout({ children }: LayoutProps) {
     </div>
   )
 }
+

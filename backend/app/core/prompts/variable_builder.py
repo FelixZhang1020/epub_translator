@@ -706,3 +706,4 @@ async def build_variables(
         total_chapters=kwargs.get("total_chapters"),
     )
     return await UnifiedVariableBuilder.build(db, input_data)
+

@@ -43,3 +43,4 @@ Frontend:
 - Frontend: http://localhost:5200
 - Backend API: http://localhost:5300
 - API Docs: http://localhost:5300/docs
+

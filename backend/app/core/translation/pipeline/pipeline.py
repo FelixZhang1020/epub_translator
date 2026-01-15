@@ -196,3 +196,4 @@ class PipelineFactory:
             **kwargs,
         )
         return TranslationPipeline(config)
+

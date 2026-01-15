@@ -277,3 +277,4 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
 // Hook to check if store is ready (hydrated)
 export const useSettingsHydrated = () => useSettingsStore((state) => state._isHydrated)
+

@@ -465,3 +465,4 @@ async def get_image(
 
     except zipfile.BadZipFile:
         raise HTTPException(status_code=500, detail="Invalid EPUB file")
+

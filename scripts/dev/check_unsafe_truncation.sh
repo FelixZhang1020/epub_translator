@@ -132,3 +132,4 @@ else
     echo -e "${GREEN}No unsafe truncation patterns found!${NC}"
     exit 0
 fi
+

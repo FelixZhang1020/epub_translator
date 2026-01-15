@@ -43,3 +43,4 @@ echo ""
 echo "Services restarted!"
 echo "Backend:  http://localhost:$BACKEND_PORT"
 echo "Frontend: http://localhost:$FRONTEND_PORT"
+

@@ -58,3 +58,4 @@ class Chapter(Base):
     paragraphs: Mapped[list["Paragraph"]] = relationship(
         "Paragraph", back_populates="chapter", cascade="all, delete-orphan"
     )
+

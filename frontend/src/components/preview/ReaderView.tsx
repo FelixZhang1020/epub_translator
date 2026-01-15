@@ -206,3 +206,4 @@ export function ReaderView({ content, projectId, contentMode }: ReaderViewProps)
     </div>
   )
 }
+

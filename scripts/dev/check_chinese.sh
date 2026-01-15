@@ -72,3 +72,4 @@ else
     echo -e "${GREEN}No violations found. All source files are Chinese-free!${NC}"
     exit 0
 fi
+

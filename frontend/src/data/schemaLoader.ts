@@ -140,3 +140,4 @@ export function variableExists(schema: VariableSchemaType, varName: string): boo
 
   return false
 }
+

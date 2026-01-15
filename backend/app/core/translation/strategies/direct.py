@@ -117,3 +117,4 @@ Output only the translation, without any explanation or commentary."""
         return f"""Please translate the following English text:
 
 {variables.get('source_text', variables.get('content.source', ''))}"""
+
