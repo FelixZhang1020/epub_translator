@@ -9,7 +9,7 @@
 
 <div align="center">
 
-**[English](README.md) · [License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md)**
+**[English](README.md)**
 
 </div>
 

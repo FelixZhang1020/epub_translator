@@ -9,7 +9,7 @@
 
 <div align="center">
 
-**[中文文档](README_ZH.md) · [License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md) · [Compliance](docs/COMPLIANCE.md) · [Changelog](CHANGELOG.md) · [Releasing](docs/RELEASING.md) · [Deployment](docs/DEPLOYMENT.md)**
+**[中文文档](README_ZH.md)**
 
 </div>
 
