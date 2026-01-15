@@ -191,7 +191,8 @@ epub_translator/
 │   │   ├── api/v1/routes/    # REST 接口（11 个模块）
 │   │   ├── core/             # 业务逻辑
 │   │   │   ├── analysis/     # 书籍分析服务
-│   │   │   ├── epub/         # ePub 解析（lxml）与生成
+│   │   │   ├── epub/         # ePub 解析与生成
+│   │   │   ├── export/       # PDF/HTML 导出
 │   │   │   ├── llm/          # UnifiedLLMGateway、LLMRuntimeConfig
 │   │   │   ├── matching/     # 参考段落对齐
 │   │   │   ├── proofreading/ # 校对服务
@@ -215,9 +216,10 @@ epub_translator/
 │       ├── exports/          # 生成的输出文件
 │       ├── prompts/          # 自定义提示词覆盖
 │       └── variables.json    # 自定义模板变量
-├── scripts/dev/              # 开发脚本
+├── scripts/dev/              # 开发脚本（restart.sh 等）
 ├── start.sh                  # 一键安装与启动脚本
-└── tests/                    # 测试资源
+├── CHANGELOG.md              # 版本历史
+└── CLAUDE.md                 # Claude Code 指令
 ```
 
 ## API 概览

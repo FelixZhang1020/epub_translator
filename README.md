@@ -189,7 +189,8 @@ epub_translator/
 │   │   ├── api/v1/routes/    # REST endpoints (11 modules)
 │   │   ├── core/             # Business logic
 │   │   │   ├── analysis/     # Book analysis service
-│   │   │   ├── epub/         # ePub parsing (lxml) & generation
+│   │   │   ├── epub/         # ePub parsing & generation
+│   │   │   ├── export/       # PDF/HTML export
 │   │   │   ├── llm/          # UnifiedLLMGateway, LLMRuntimeConfig
 │   │   │   ├── matching/     # Reference paragraph alignment
 │   │   │   ├── proofreading/ # Proofreading service
@@ -213,9 +214,10 @@ epub_translator/
 │       ├── exports/          # Generated outputs
 │       ├── prompts/          # Custom prompt overrides
 │       └── variables.json    # Custom template variables
-├── scripts/dev/              # Development scripts
-├── start.sh                  # One-shot setup + dev servers
-└── tests/                    # Test fixtures
+├── scripts/dev/              # Development scripts (restart.sh, etc.)
+├── start.sh                  # One-click install + dev servers
+├── CHANGELOG.md              # Version history
+└── CLAUDE.md                 # Claude Code instructions
 ```
 
 ## API Overview
