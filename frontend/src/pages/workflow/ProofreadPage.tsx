@@ -262,12 +262,24 @@ export function ProofreadPage() {
     })
   }
 
-  // Build chapter stats map - use confirmed_count for proofreading progress
+  // Build chapter stats map for sidebar - show confirmed (proofread) count
   const chapterStatsMap = useMemo(() => {
     const map = new Map<string, { translated: number; total: number }>()
     chapters?.forEach(chapter => {
       map.set(chapter.id, {
-        translated: chapter.confirmed_count,  // Use confirmed (locked) count for proofreading
+        translated: chapter.confirmed_count,  // Show proofread (confirmed) count in sidebar
+        total: chapter.paragraph_count,
+      })
+    })
+    return map
+  }, [chapters])
+
+  // Build chapter stats map for selection modal - show translated count
+  const chapterSelectionStatsMap = useMemo(() => {
+    const map = new Map<string, { translated: number; total: number }>()
+    chapters?.forEach(chapter => {
+      map.set(chapter.id, {
+        translated: chapter.translated_count,  // Show translated count in selection modal
         total: chapter.paragraph_count,
       })
     })
@@ -920,7 +932,7 @@ export function ProofreadPage() {
                     expandAll={true}
                     showCheckboxes={true}
                     selectedChapterIds={selectedChaptersForProofreading}
-                    chapterStatsMap={chapterStatsMap}
+                    chapterStatsMap={chapterSelectionStatsMap}
                   />
                 ) : chapters?.length ? (
                   <div className="space-y-1">
