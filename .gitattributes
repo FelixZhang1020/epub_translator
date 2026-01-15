@@ -1,7 +1,9 @@
 # Exclude non-source assets from language stats
 *.epub linguist-vendored
 epub_sample/* linguist-vendored
-backend/test_data/** linguist-vendored
 data/** linguist-vendored
-docs/** linguist-vendored
-tests/fixtures/** linguist-vendored
+
+# Exclude config/generated files from language stats
+*.mako linguist-generated
+frontend/*.js linguist-vendored
+frontend/src/index.css linguist-vendored
