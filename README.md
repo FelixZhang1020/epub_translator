@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://github.com/FelixZhang1020/epub_translator/stargazers"><img src="https://img.shields.io/github/stars/FelixZhang1020/epub_translator?style=flat-square" alt="GitHub Stars"></a>
-  <a href="https://github.com/FelixZhang1020/epub_translator/actions"><img src="https://img.shields.io/badge/CI-status-grey?style=flat-square" alt="CI Status"></a>
+  <a href="https://github.com/FelixZhang1020/epub_translator/actions/workflows/ci.yml"><img src="https://github.com/FelixZhang1020/epub_translator/actions/workflows/ci.yml/badge.svg?branch=main&style=flat-square" alt="CI"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
   <a><img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a><img src="https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 18+"></a>
@@ -10,7 +10,7 @@
 
 <div align="center">
 
-**[中文文档](README_ZH.md) · [License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md)**
+**[中文文档](README_ZH.md) · [License](LICENSE) · [Contributing](CONTRIBUTING.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Security](SECURITY.md) · [Privacy](PRIVACY.md) · [Compliance](docs/COMPLIANCE.md) · [Changelog](CHANGELOG.md) · [Releasing](docs/RELEASING.md) · [Deployment](docs/DEPLOYMENT.md)**
 
 </div>
 
@@ -71,7 +71,31 @@ ePub Translator is a full-stack app that analyzes, translates, and proofreads eP
 - Node.js 18+
 - npm or pnpm
 
-### Backend Setup
+### One-Click Install & Run (Recommended)
+
+```bash
+./start.sh
+```
+
+This script automatically:
+1. Creates Python virtual environment (if not exists)
+2. Installs Python dependencies (if not installed)
+3. Installs npm dependencies (if node_modules not exists)
+4. Starts both backend and frontend servers
+
+Press `Ctrl+C` to stop both servers.
+
+| Script | Purpose | Mode |
+|--------|---------|------|
+| `./start.sh` | Install + start | Interactive (foreground) |
+| `./scripts/dev/restart.sh` | Restart services | Background (nohup) |
+
+### Manual Setup (Alternative)
+
+<details>
+<summary>Click to expand manual setup instructions</summary>
+
+#### Backend Setup
 ```bash
 cd backend
 python -m venv venv
@@ -80,24 +104,31 @@ pip install -r requirements.txt
 cp .env.example .env  # add API keys or tweak ports as needed
 ```
 
-### Frontend Setup
+#### Frontend Setup
 ```bash
 cd frontend
 npm install
 cp .env.example .env  # adjust API host/port if changed
 ```
 
-### Run
+#### Run Manually
 ```bash
-# Option A: manual
+# Terminal 1: Backend
 cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 5300
-cd frontend && npm run dev
 
-# Option B: from repo root (auto installs on first run)
-./start.sh
+# Terminal 2: Frontend
+cd frontend && npm run dev
 ```
 
-Open http://localhost:5200 and API docs at http://localhost:5300/docs.
+</details>
+
+### Access Points
+
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5200 |
+| Backend API | http://localhost:5300 |
+| API Docs | http://localhost:5300/docs |
 
 ## Usage Workflow
 

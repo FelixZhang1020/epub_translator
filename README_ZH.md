@@ -73,7 +73,31 @@ ePub Translator 是一个全栈应用，自动完成电子书的分析、翻译�
 - Node.js 18+
 - npm 或 pnpm
 
-### 后端配置
+### 一键安装启动（推荐）
+
+```bash
+./start.sh
+```
+
+该脚本会自动完成：
+1. 创建 Python 虚拟环境（如不存在）
+2. 安装 Python 依赖（如未安装）
+3. 安装 npm 依赖（如 node_modules 不存在）
+4. 启动后端和前端服务
+
+按 `Ctrl+C` 停止所有服务。
+
+| 脚本 | 用途 | 运行方式 |
+|------|------|----------|
+| `./start.sh` | 安装 + 启动 | 交互式（前台） |
+| `./scripts/dev/restart.sh` | 重启服务 | 后台运行（nohup） |
+
+### 手动配置（备选）
+
+<details>
+<summary>点击展开手动配置说明</summary>
+
+#### 后端配置
 ```bash
 cd backend
 python -m venv venv
@@ -82,24 +106,31 @@ pip install -r requirements.txt
 cp .env.example .env  # 填入 API Key 或端口配置
 ```
 
-### 前端配置
+#### 前端配置
 ```bash
 cd frontend
 npm install
 cp .env.example .env  # 如有端口变动请同步修改
 ```
 
-### 运行
+#### 手动运行
 ```bash
-# 方案 A：分别启动
+# 终端 1：后端
 cd backend && source venv/bin/activate && uvicorn app.main:app --reload --port 5300
-cd frontend && npm run dev
 
-# 方案 B：在仓库根目录一键启动（首次会自动安装依赖）
-./start.sh
+# 终端 2：前端
+cd frontend && npm run dev
 ```
 
-访问 http://localhost:5200 ，API 文档在 http://localhost:5300/docs 。
+</details>
+
+### 访问地址
+
+| 服务 | 地址 |
+|------|------|
+| 前端界面 | http://localhost:5200 |
+| 后端 API | http://localhost:5300 |
+| API 文档 | http://localhost:5300/docs |
 
 ## 使用流程
 
