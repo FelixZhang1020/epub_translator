@@ -48,11 +48,11 @@ ePub Translator is a full-stack app that analyzes, translates, and proofreads eP
 
 ### Part 1: Upload & Analysis
 
-<video src="https://github.com/FelixZhang1020/ePub_Translator/raw/main/docs/videos/1.%20ePub%20Translation%20-%20Upload%20%26%20Analysis%20-%20HD.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/566af0b1-cfcf-4872-a498-4b9e6d05953c
 
 ### Part 2: Process & Export
 
-<video src="https://github.com/FelixZhang1020/ePub_Translator/raw/main/docs/videos/2.%20ePub%20Translator%20-%20Process%20%26%20Export%20-%20HD.mp4" controls width="100%"></video>
+https://github.com/user-attachments/assets/f4f78c33-87b1-4756-8cc6-c4a5b20729b7
 
 ## Highlights
 
